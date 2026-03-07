@@ -5,7 +5,13 @@
   "version": "1.0.1",
   "browser_specific_settings": {
     "gecko": {
-      "id": "uyiiio+addon-flipboard-translator@gmail.com"
+      "id": "uyiiio@gmail.com",
+      "data_collection_permissions": {
+        "required": [
+          "websiteContent"
+        ],
+        "optional": []
+      }
     }
   },
   "permissions": [
@@ -17,9 +23,7 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": [
-      "src/background.js"
-    ],
+    "scripts": ["src/background.js"],
     "persistent": false
   },
   "browser_action": {
@@ -28,15 +32,9 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "src/content.js"
-      ],
-      "css": [
-        "src/content.css"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     }
   ]
