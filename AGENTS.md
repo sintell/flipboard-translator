@@ -19,16 +19,7 @@ Agent guidance for working in `flipboard-translator`.
 - `package.json` defines clean, build, format, check, and release workflows.
 - GitHub release automation is configured in `.github/workflows/release.yml`.
 
-## 2) Cursor / Copilot Rules
-
-- Checked for Cursor rules:
-  - `.cursor/rules/` -> not present
-  - `.cursorrules` -> not present
-- Checked for Copilot rules:
-  - `.github/copilot-instructions.md` -> not present
-- Therefore: no repository-specific Cursor/Copilot instruction files currently apply.
-
-## 3) Build, Lint, and Test Commands
+## 2) Build, Lint, and Test Commands
 
 This repository has npm-based build/format/release workflows and no formal automated test framework.
 
@@ -53,9 +44,11 @@ tsgo --noEmit -p tsconfig.json
 
 ### Tests
 
-- No automated test framework is configured (no Jest/Vitest/Mocha files).
-- There is currently no command for `test` or `test:single`.
-- Single-test execution is therefore **N/A** until a test runner is added.
+- Run the full unit test suite: `npm test`
+- Run Vitest in watch mode: `npm run test:watch`
+- Run one file or one filtered test: `npm run test:single -- tests/unit/shared/settings.test.ts`
+- Run one test case name: `npm run test:single -- tests/unit/shared/settings.test.ts -t "merges defaults and normalizes fields"`
+- The current suite focuses on pure helpers and extracted Node script utilities.
 
 ### Manual verification (current source of truth)
 
@@ -80,23 +73,23 @@ tsgo --noEmit -p tsconfig.json
 
 ## 4) Single-Test Guidance for Future Additions
 
-If you introduce a test runner, also add these scripts in `package.json`:
+If you extend the test runner setup, keep these scripts in `package.json`:
 
 - `test`: run full suite
 - `test:watch`: watch mode
 - `test:single`: run one file or one test name
 
-Example (Vitest-style) single test commands once configured:
+Example (Vitest-style) single test commands:
 
 ```bash
 # one file
-npx vitest run path/to/file.test.js
+npm run test:single -- path/to/file.test.ts
 
 # one test case name
-npx vitest run path/to/file.test.js -t "case name"
+npm run test:single -- path/to/file.test.ts -t "case name"
 ```
 
-Keep AGENTS.md updated when these become real commands.
+Keep AGENTS.md updated as the suite grows.
 
 ## 5) Code Style and Conventions
 

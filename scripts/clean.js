@@ -2,12 +2,10 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getGeneratedSrcDirs } = require("./clean-utils");
 
 const rootDir = path.resolve(__dirname, "..");
-const targetDirs = [
-  path.join(rootDir, "chrome", "src"),
-  path.join(rootDir, "firefox", "src"),
-];
+const targetDirs = getGeneratedSrcDirs(rootDir);
 
 for (const targetDir of targetDirs) {
   fs.rmSync(targetDir, { recursive: true, force: true });

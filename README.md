@@ -50,6 +50,31 @@ npm run check
 
 - Runs `tsgo --noEmit` and then the Rspack build
 
+Run the unit test suite with:
+
+```bash
+npm test
+```
+
+Run Vitest in watch mode with:
+
+```bash
+npm run test:watch
+```
+
+Run one test file or filter to one test name with:
+
+```bash
+# one file
+npm run test:single -- tests/unit/shared/settings.test.ts
+
+# one test case name
+npm run test:single -- tests/unit/shared/settings.test.ts -t "merges defaults and normalizes fields"
+```
+
+- `npm run check` runs formatting checks, `tsgo --noEmit`, the Vitest suite, and then the Rspack build.
+- The initial suite covers pure helpers and extracted Node script utilities.
+
 ## Releasing
 
 GitHub releases are created by the workflow in `.github/workflows/release.yml`.

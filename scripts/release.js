@@ -1,6 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const {
+  getNextVersion,
+  getTagMessage,
+  parseArgs,
+  updatePackageLockVersion,
+} = require("./release-utils");
 
 const rootDir = path.resolve(__dirname, "..");
 const packageJsonPath = path.join(rootDir, "package.json");
@@ -29,44 +35,6 @@ function fail(message) {
   process.exit(1);
 }
 
-function parseVersionParts(value) {
-  const match = String(value).match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (!match) {
-    return null;
-  }
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-  };
-}
-
-function getNextVersion(currentVersion, input) {
-  const current = parseVersionParts(currentVersion);
-  if (!current) {
-    fail(`Unsupported current version format: ${currentVersion}`);
-  }
-
-  const explicit = parseVersionParts(input);
-  if (explicit) {
-    return input;
-  }
-
-  if (input === "patch") {
-    return `${current.major}.${current.minor}.${current.patch + 1}`;
-  }
-  if (input === "minor") {
-    return `${current.major}.${current.minor + 1}.0`;
-  }
-  if (input === "major") {
-    return `${current.major + 1}.0.0`;
-  }
-
-  fail(
-    `Release argument must be patch, minor, major, or an explicit x.y.z version. Received: ${input}`,
-  );
-}
-
 function ensureCleanGitTree() {
   const status = runGit(["status", "--porcelain"]);
   if (status) {
@@ -81,72 +49,19 @@ function ensureTagDoesNotExist(tagName) {
   }
 }
 
-function updatePackageLockVersion(packageLock, nextVersion) {
-  packageLock.version = nextVersion;
-  if (packageLock.packages && packageLock.packages[""]) {
-    packageLock.packages[""].version = nextVersion;
-  }
-}
-
-function parseArgs(argv) {
-  const args = Array.from(argv);
-  let version = null;
-  let notes = "";
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-
-    if (arg === "--notes" || arg === "--description" || arg === "-n") {
-      const nextArg = args[index + 1];
-      if (nextArg === undefined) {
-        fail(`Missing value for ${arg}.`);
-      }
-      notes = String(nextArg);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--notes=")) {
-      notes = arg.slice("--notes=".length);
-      continue;
-    }
-
-    if (arg.startsWith("--description=")) {
-      notes = arg.slice("--description=".length);
-      continue;
-    }
-
-    if (arg.startsWith("-")) {
-      fail(`Unknown option: ${arg}`);
-    }
-
-    if (version !== null) {
-      fail(`Unexpected release argument: ${arg}`);
-    }
-
-    version = arg;
-  }
-
-  return {
-    version: version || "patch",
-    notes: notes.trim(),
-  };
-}
-
 function writeReleaseNotes(notes) {
   fs.mkdirSync(path.dirname(releaseNotesPath), { recursive: true });
   fs.writeFileSync(releaseNotesPath, notes ? `${notes}\n` : "");
 }
 
-function getTagMessage(tagName, notes) {
-  if (!notes) {
-    return `Release ${tagName}`;
-  }
-  return `Release ${tagName}\n\n${notes}`;
-}
-
 function main() {
-  const options = parseArgs(process.argv.slice(2));
+  let options;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    fail(error && error.message ? error.message : String(error));
+  }
+
   ensureCleanGitTree();
 
   const packageJson = readJson(packageJsonPath);
@@ -202,4 +117,6 @@ function main() {
   console.log(`[release] Released ${tagName}`);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
