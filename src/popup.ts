@@ -2,6 +2,7 @@
   const DEFAULT_SETTINGS = globalThis.RWF_DEFAULT_SETTINGS;
 
   const SETTINGS_KEY = "rwfSettings";
+  const SETTINGS_SCHEMA_VERSION = 1;
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
   const log = globalThis.RWF_createLogger("popup", () => currentSettings.debugLogs);
 
@@ -27,7 +28,13 @@
       }
       return new Promise((resolve) => {
         try {
-          chrome.storage.sync.get(key, (result) => resolve(result || {}));
+          chrome.storage.sync.get(key, (result) => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve({});
+              return;
+            }
+            resolve(result || {});
+          });
         } catch (_err) {
           resolve({});
         }
@@ -35,13 +42,19 @@
     },
     storageSyncSet(payload) {
       if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
-        return browser.storage.sync.set(payload).catch(() => {});
+        return browser.storage.sync.set(payload).then(() => true).catch(() => false);
       }
-      return new Promise<void>((resolve) => {
+      return new Promise<boolean>((resolve) => {
         try {
-          chrome.storage.sync.set(payload, () => resolve());
+          chrome.storage.sync.set(payload, () => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve(false);
+              return;
+            }
+            resolve(true);
+          });
         } catch (_err) {
-          resolve();
+          resolve(false);
         }
       });
     },
@@ -51,7 +64,13 @@
       }
       return new Promise((resolve) => {
         try {
-          chrome.storage.local.get(key, (result) => resolve(result || {}));
+          chrome.storage.local.get(key, (result) => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve({});
+              return;
+            }
+            resolve(result || {});
+          });
         } catch (_err) {
           resolve({});
         }
@@ -59,13 +78,19 @@
     },
     storageLocalSet(payload) {
       if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
-        return browser.storage.local.set(payload).catch(() => {});
+        return browser.storage.local.set(payload).then(() => true).catch(() => false);
       }
-      return new Promise<void>((resolve) => {
+      return new Promise<boolean>((resolve) => {
         try {
-          chrome.storage.local.set(payload, () => resolve());
+          chrome.storage.local.set(payload, () => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve(false);
+              return;
+            }
+            resolve(true);
+          });
         } catch (_err) {
-          resolve();
+          resolve(false);
         }
       });
     },
@@ -113,6 +138,67 @@
     return merged;
   }
 
+  function normalizeSettingsRecord(input) {
+    const raw = input && typeof input === "object" ? input : null;
+    const hasWrappedValue = Boolean(raw && raw.value && typeof raw.value === "object");
+    const hasStoredValue = hasWrappedValue || Boolean(raw);
+    const settings = normalizeSettings(hasWrappedValue ? raw.value : raw);
+    const updatedAtCandidate = hasWrappedValue ? raw.updatedAt : raw && raw.updatedAt;
+    const updatedAt = Number(updatedAtCandidate);
+    return {
+      value: settings,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
+      version: SETTINGS_SCHEMA_VERSION,
+      hasStoredValue
+    };
+  }
+
+  function pickBestSettingsRecord(syncRecord, localRecord) {
+    if (localRecord.updatedAt !== syncRecord.updatedAt) {
+      return localRecord.updatedAt > syncRecord.updatedAt ? localRecord : syncRecord;
+    }
+    if (localRecord.hasStoredValue !== syncRecord.hasStoredValue) {
+      return localRecord.hasStoredValue ? localRecord : syncRecord;
+    }
+    return syncRecord;
+  }
+
+  function toStoredSettingsRecord(record) {
+    return {
+      value: record.value,
+      updatedAt: record.updatedAt,
+      version: record.version
+    };
+  }
+
+  async function saveSettingsRecord(record) {
+    const [syncOk, localOk] = await Promise.all([
+      api.storageSyncSet({ [SETTINGS_KEY]: record }),
+      api.storageLocalSet({ [SETTINGS_KEY]: record })
+    ]);
+    return syncOk || localOk;
+  }
+
+  async function loadStoredSettingsRecord() {
+    const [fromSync, fromLocal] = await Promise.all([
+      api.storageSyncGet(SETTINGS_KEY),
+      api.storageLocalGet(SETTINGS_KEY)
+    ]);
+    const syncRecord = normalizeSettingsRecord(fromSync ? fromSync[SETTINGS_KEY] : undefined);
+    const localRecord = normalizeSettingsRecord(fromLocal ? fromLocal[SETTINGS_KEY] : undefined);
+    const bestRecord = pickBestSettingsRecord(syncRecord, localRecord);
+    const storedBestRecord = toStoredSettingsRecord(bestRecord);
+
+    if (JSON.stringify(toStoredSettingsRecord(syncRecord)) !== JSON.stringify(storedBestRecord)) {
+      await api.storageSyncSet({ [SETTINGS_KEY]: storedBestRecord });
+    }
+    if (JSON.stringify(toStoredSettingsRecord(localRecord)) !== JSON.stringify(storedBestRecord)) {
+      await api.storageLocalSet({ [SETTINGS_KEY]: storedBestRecord });
+    }
+
+    return storedBestRecord;
+  }
+
   function formToSettings() {
     return normalizeSettings({
       wordCount: refs.wordCount.value,
@@ -140,21 +226,17 @@
 
   async function saveSettings() {
     const settings = formToSettings();
+    const record = normalizeSettingsRecord({ value: settings, updatedAt: Date.now() });
     currentSettings = settings;
-    log("saveSettings", settings);
-    await api.storageSyncSet({ [SETTINGS_KEY]: settings });
-    await api.storageLocalSet({ [SETTINGS_KEY]: settings });
+    log("saveSettings", record);
+    const saved = await saveSettingsRecord(record);
     applySettingsToForm(settings);
-    return settings;
+    return { settings, saved };
   }
 
   async function loadStoredSettings() {
-    const fromSync = await api.storageSyncGet(SETTINGS_KEY);
-    if (fromSync && fromSync[SETTINGS_KEY]) {
-      return fromSync[SETTINGS_KEY];
-    }
-    const fromLocal = await api.storageLocalGet(SETTINGS_KEY);
-    return fromLocal ? fromLocal[SETTINGS_KEY] : undefined;
+    const record = await loadStoredSettingsRecord();
+    return record.value;
   }
 
   async function runOnActiveTab() {
@@ -258,15 +340,15 @@
     applySettingsToForm(settings);
 
     refs.saveBtn.addEventListener("click", async () => {
-      await saveSettings();
-      setStatus("Settings saved.");
+      const result = await saveSettings();
+      setStatus(result.saved ? "Settings saved." : "Settings save failed.");
       await refreshCountdown();
     });
 
     refs.runBtn.addEventListener("click", async () => {
-      await saveSettings();
+      const result = await saveSettings();
       const ok = await runOnActiveTab();
-      if (ok) setStatus("Translation run started.");
+      if (ok) setStatus(result.saved ? "Translation run started." : "Translation started, but settings were not saved.");
       await refreshCountdown();
     });
 
