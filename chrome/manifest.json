@@ -4,19 +4,23 @@
   "description": "Randomly replaces page words with translated words using a split-flap animation.",
   "version": "1.0.0",
   "permissions": ["storage", "activeTab", "tabs"],
-  "host_permissions": ["https://api.mymemory.translated.net/*", "https://translate.googleapis.com/*", "<all_urls>"],
+  "host_permissions": [
+    "https://api.mymemory.translated.net/*",
+    "https://translate.googleapis.com/*",
+    "<all_urls>"
+  ],
   "action": {
     "default_title": "Flipboard Translator",
-    "default_popup": "popup.html"
+    "default_popup": "src/popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     }
   ]

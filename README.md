@@ -2,9 +2,11 @@
 
 This WebExtension picks `X` random words from the current page, translates them into language `Y`, and replaces every occurrence with clean inline text.
 
+Shared extension source files live in the top-level `src/` folder. The `chrome/` and `firefox/` folders contain their own `manifest.json` plus a `src` link back to the shared source.
+
 ## Features
 
-- Cross-browser extension (Manifest V3) for Chrome and Firefox
+- Cross-browser extension with separate Chrome MV3 and Firefox MV2 manifests
 - Picks random words from visible text on the page
 - Replaces all occurrences (whole-word matching)
 - Clean replacement styling with underline
@@ -33,24 +35,21 @@ This WebExtension picks `X` random words from the current page, translates them 
 1. Open `chrome://extensions`
 2. Enable `Developer mode`
 3. Click `Load unpacked`
-4. Select this folder
+4. Select the `chrome/` folder
 
 ## Load in Firefox
 
-This project includes two manifests:
+This project includes two browser-specific manifest folders:
 
-- `manifest.json` for Chrome/Chromium (MV3 service worker)
-- `manifest.firefox.json` fallback for Firefox versions where MV3 background service workers are disabled
+- `chrome/manifest.json` for Chrome/Chromium (MV3 service worker)
+- `firefox/manifest.json` for Firefox (MV2 fallback)
+- Shared runtime files in top-level `src/` (`background.js`, `content.js`, `content.css`, `popup.html`, `popup.js`, `popup.css`)
 
-To use Firefox fallback manifest:
+To load in Firefox:
 
-1. Temporarily rename `manifest.json` to `manifest.chrome.json`
-2. Rename `manifest.firefox.json` to `manifest.json`
-3. Open `about:debugging#/runtime/this-firefox`
-4. Click `Load Temporary Add-on...`
-5. Select `manifest.json` from this folder
-
-When switching back to Chrome, restore the original names.
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click `Load Temporary Add-on...`
+3. Select `firefox/manifest.json`
 
 ## Notes
 

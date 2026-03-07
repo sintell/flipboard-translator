@@ -6,12 +6,13 @@ Agent guidance for working in `flipboard-translator`.
 
 - Type: browser extension (Chrome MV3 + Firefox MV2 fallback).
 - Runtime stack: plain JavaScript, HTML, CSS (no bundler, no TypeScript).
+- Layout: shared runtime files live in top-level `src/`; each browser folder contains its own `manifest.json` and a `src` link back to that shared source.
 - Entry points:
-  - `manifest.json` (Chrome/Chromium)
-  - `manifest.firefox.json` (Firefox fallback)
-  - `background.js` (translation + cache logic)
-  - `content.js` (DOM scanning/replacement + scheduler)
-  - `popup.js` (popup UI + settings + commands)
+  - `chrome/manifest.json` (Chrome/Chromium)
+  - `firefox/manifest.json` (Firefox fallback)
+  - `src/background.js` (translation + cache logic)
+  - `src/content.js` (DOM scanning/replacement + scheduler)
+  - `src/popup.js` (popup UI + settings + commands)
 - No `package.json` is present.
 - No configured CI scripts are present in this repo.
 
@@ -39,15 +40,15 @@ This repository currently has no formal build/lint/test toolchain.
 - If you need a lightweight syntax sanity check, run Node parse checks:
 
 ```bash
-node --check background.js
-node --check content.js
-node --check popup.js
+node --check src/background.js
+node --check src/content.js
+node --check src/popup.js
 ```
 
 - Optional all-in-one syntax check:
 
 ```bash
-for f in background.js content.js popup.js; do node --check "$f"; done
+for f in src/background.js src/content.js src/popup.js; do node --check "$f"; done
 ```
 
 ### Tests
@@ -62,12 +63,11 @@ for f in background.js content.js popup.js; do node --check "$f"; done
   1. Open `chrome://extensions`
   2. Enable Developer mode
   3. Click Load unpacked
-  4. Select repo root
+  4. Select the `chrome/` folder
 - Firefox fallback manifest:
-  1. Rename `manifest.json` -> `manifest.chrome.json`
-  2. Rename `manifest.firefox.json` -> `manifest.json`
-  3. Open `about:debugging#/runtime/this-firefox`
-  4. Load Temporary Add-on using `manifest.json`
+  1. Open `about:debugging#/runtime/this-firefox`
+  2. Click Load Temporary Add-on...
+  3. Select `firefox/manifest.json`
 
 ## 4) Single-Test Guidance for Future Additions
 
@@ -91,7 +91,7 @@ Keep AGENTS.md updated when these become real commands.
 
 ## 5) Code Style and Conventions
 
-Follow existing style in `background.js`, `content.js`, `popup.js`.
+Follow existing style in `src/background.js`, `src/content.js`, `src/popup.js`.
 
 ### JavaScript basics
 
