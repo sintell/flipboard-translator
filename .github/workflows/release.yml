@@ -80,6 +80,7 @@ jobs:
           cmd: sign
           source: dist/flipboard-translator-firefox-${{ github.ref_name }}.zip
           sourceCode: sources.zip
+          artifacts: dist
           channel: unlisted
           apiKey: ${{ secrets.AMO_SIGN_KEY }}
           apiSecret: ${{ secrets.AMO_SIGN_SECRET }}
