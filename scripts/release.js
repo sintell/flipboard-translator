@@ -73,11 +73,9 @@ function ensureCleanGitTree() {
 }
 
 function ensureTagDoesNotExist(tagName) {
-  try {
-    runGit(["rev-parse", "--verify", tagName]);
+  const existingTag = runGit(["tag", "-l", tagName]);
+  if (existingTag === tagName) {
     fail(`Tag ${tagName} already exists.`);
-  } catch (_err) {
-    return;
   }
 }
 
