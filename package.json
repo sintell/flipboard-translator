@@ -1,7 +1,7 @@
 {
   "name": "flipboard-translator",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scripts": {
     "clean": "node scripts/clean.js",
     "build": "rspack build",
