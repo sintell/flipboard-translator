@@ -1,11 +1,5 @@
 (function () {
-  const DEBUG = true;
-
-  const DEFAULT_SETTINGS = {
-    wordCount: 8,
-    targetLang: "ko",
-    refreshSeconds: 60
-  };
+  const DEFAULT_SETTINGS = globalThis.RWF_DEFAULT_SETTINGS;
   const ALLOWED_TARGET_LANGS = new Set(["ko", "es", "ka"]);
 
   const SETTINGS_KEY = "rwfSettings";
@@ -16,15 +10,7 @@
   let isPaused = false;
   let nextRunAt = null;
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
-
-  function log(step, data?) {
-    if (!DEBUG) return;
-    if (typeof data === "undefined") {
-      console.log(`[RWF][content] ${step}`);
-      return;
-    }
-    console.log(`[RWF][content] ${step}`, data);
-  }
+  const log = globalThis.RWF_createLogger("content", () => currentSettings.debugLogs);
 
   const api = {
     storageSyncGet(key) {
@@ -90,6 +76,7 @@
     merged.wordCount = clampInt(merged.wordCount, 1, 40, DEFAULT_SETTINGS.wordCount);
     merged.refreshSeconds = clampInt(merged.refreshSeconds, 5, 86400, DEFAULT_SETTINGS.refreshSeconds);
     merged.targetLang = String(merged.targetLang || DEFAULT_SETTINGS.targetLang).toLowerCase();
+    merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, DEFAULT_SETTINGS.debugLogs);
     if (!ALLOWED_TARGET_LANGS.has(merged.targetLang)) {
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
     }

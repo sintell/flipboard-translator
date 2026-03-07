@@ -1,16 +1,9 @@
 (function () {
-  const DEBUG = true;
   const CACHE_KEY = "rwfTranslationCache";
+  const SETTINGS_KEY = "rwfSettings";
   const MAX_CACHE_ENTRIES = 1500;
-
-  function log(step, data?) {
-    if (!DEBUG) return;
-    if (typeof data === "undefined") {
-      console.log(`[RWF][background] ${step}`);
-      return;
-    }
-    console.log(`[RWF][background] ${step}`, data);
-  }
+  let debugLogsEnabled = globalThis.RWF_DEFAULT_SETTINGS.debugLogs;
+  const log = globalThis.RWF_createLogger("background", () => debugLogsEnabled);
 
   function getRuntime() {
     if (typeof browser !== "undefined" && browser.runtime) return browser.runtime;
@@ -22,6 +15,13 @@
       return browser.storage.local;
     }
     return chrome.storage.local;
+  }
+
+  function getStorageSync() {
+    if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
+      return browser.storage.sync;
+    }
+    return chrome.storage.sync;
   }
 
   function storageLocalGet(key) {
@@ -50,6 +50,41 @@
         resolve();
       }
     });
+  }
+
+  function storageSyncGet(key) {
+    const area = getStorageSync();
+    return new Promise((resolve) => {
+      try {
+        const maybePromise = area.get(key, (result) => resolve(result || {}));
+        if (maybePromise && typeof maybePromise.then === "function") {
+          maybePromise.then((result) => resolve(result || {})).catch(() => resolve({}));
+        }
+      } catch (_err) {
+        resolve({});
+      }
+    });
+  }
+
+  function normalizeSettings(input) {
+    const merged = Object.assign({}, globalThis.RWF_DEFAULT_SETTINGS, input || {});
+    merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, globalThis.RWF_DEFAULT_SETTINGS.debugLogs);
+    return merged;
+  }
+
+  async function loadStoredSettings() {
+    const fromSync = await storageSyncGet(SETTINGS_KEY);
+    if (fromSync && fromSync[SETTINGS_KEY]) {
+      return fromSync[SETTINGS_KEY];
+    }
+    const fromLocal = await storageLocalGet(SETTINGS_KEY);
+    return fromLocal ? fromLocal[SETTINGS_KEY] : undefined;
+  }
+
+  async function refreshDebugLogsSetting() {
+    const raw = await loadStoredSettings();
+    const settings = normalizeSettings(raw);
+    debugLogsEnabled = settings.debugLogs;
   }
 
   async function loadCache() {
@@ -282,6 +317,31 @@
   }
 
   const runtime = getRuntime();
+  if (runtime && runtime.onStartup) {
+    runtime.onStartup.addListener(() => {
+      refreshDebugLogsSetting();
+    });
+  }
+  if (runtime && runtime.onInstalled) {
+    runtime.onInstalled.addListener(() => {
+      refreshDebugLogsSetting();
+    });
+  }
+  if (typeof browser !== "undefined" && browser.storage && browser.storage.onChanged) {
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if ((areaName === "sync" || areaName === "local") && changes && changes[SETTINGS_KEY]) {
+        const nextValue = changes[SETTINGS_KEY].newValue;
+        debugLogsEnabled = normalizeSettings(nextValue).debugLogs;
+      }
+    });
+  } else if (chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if ((areaName === "sync" || areaName === "local") && changes && changes[SETTINGS_KEY]) {
+        const nextValue = changes[SETTINGS_KEY].newValue;
+        debugLogsEnabled = normalizeSettings(nextValue).debugLogs;
+      }
+    });
+  }
   runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || message.type !== "RWF_TRANSLATE_REQUEST") {
       return false;
@@ -298,4 +358,6 @@
 
     return true;
   });
+
+  refreshDebugLogsSetting();
 })();

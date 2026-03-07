@@ -57,6 +57,26 @@ h1 {
   color: var(--muted);
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.toggle span {
+  display: block;
+}
+
 input,
 select,
 button {

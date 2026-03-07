@@ -1,18 +1,15 @@
 (function () {
-  const DEBUG = true;
-
-  const DEFAULT_SETTINGS = {
-    wordCount: 8,
-    targetLang: "ko",
-    refreshSeconds: 60
-  };
+  const DEFAULT_SETTINGS = globalThis.RWF_DEFAULT_SETTINGS;
 
   const SETTINGS_KEY = "rwfSettings";
+  let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
+  const log = globalThis.RWF_createLogger("popup", () => currentSettings.debugLogs);
 
   const refs = {
     wordCount: document.getElementById("wordCount") as HTMLInputElement,
     targetLang: document.getElementById("targetLang") as HTMLSelectElement,
     refreshSeconds: document.getElementById("refreshSeconds") as HTMLInputElement,
+    debugLogs: document.getElementById("debugLogs") as HTMLInputElement,
     saveBtn: document.getElementById("saveBtn") as HTMLButtonElement,
     runBtn: document.getElementById("runBtn") as HTMLButtonElement,
     pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
@@ -22,15 +19,6 @@
   };
 
   let countdownTimer = null;
-
-  function log(step, data?) {
-    if (!DEBUG) return;
-    if (typeof data === "undefined") {
-      console.log(`[RWF][popup] ${step}`);
-      return;
-    }
-    console.log(`[RWF][popup] ${step}`, data);
-  }
 
   const api = {
     storageSyncGet(key) {
@@ -118,6 +106,7 @@
     merged.wordCount = clampInt(merged.wordCount, 1, 40, DEFAULT_SETTINGS.wordCount);
     merged.refreshSeconds = clampInt(merged.refreshSeconds, 5, 86400, DEFAULT_SETTINGS.refreshSeconds);
     merged.targetLang = String(merged.targetLang || DEFAULT_SETTINGS.targetLang).toLowerCase();
+    merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, DEFAULT_SETTINGS.debugLogs);
     if (!["ko", "es", "ka"].includes(merged.targetLang)) {
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
     }
@@ -128,7 +117,8 @@
     return normalizeSettings({
       wordCount: refs.wordCount.value,
       targetLang: refs.targetLang.value,
-      refreshSeconds: refs.refreshSeconds.value
+      refreshSeconds: refs.refreshSeconds.value,
+      debugLogs: refs.debugLogs.checked
     });
   }
 
@@ -136,6 +126,7 @@
     refs.wordCount.value = String(settings.wordCount);
     refs.targetLang.value = settings.targetLang;
     refs.refreshSeconds.value = String(settings.refreshSeconds);
+    refs.debugLogs.checked = Boolean(settings.debugLogs);
   }
 
   function setStatus(message, timeout = 1800) {
@@ -149,6 +140,7 @@
 
   async function saveSettings() {
     const settings = formToSettings();
+    currentSettings = settings;
     log("saveSettings", settings);
     await api.storageSyncSet({ [SETTINGS_KEY]: settings });
     await api.storageLocalSet({ [SETTINGS_KEY]: settings });
@@ -261,6 +253,7 @@
   async function init() {
     const raw = await loadStoredSettings();
     const settings = normalizeSettings(raw);
+    currentSettings = settings;
     log("init.settings", { raw, normalized: settings });
     applySettingsToForm(settings);
 
