@@ -12,8 +12,7 @@ export function shouldSkipElement(el: Element | null): boolean {
   }
   if ((el as HTMLElement).isContentEditable) return true;
 
-  const style = globalThis.getComputedStyle ? getComputedStyle(el) : null;
-  if (!style) return false;
+  const style = globalThis.getComputedStyle(el);
   if (style.visibility === "hidden" || style.display === "none") return true;
   return false;
 }
