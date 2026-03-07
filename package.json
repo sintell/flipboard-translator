@@ -6,7 +6,9 @@
     "clean": "node scripts/clean.js",
     "build": "rspack build",
     "build:watch": "rspack build --watch",
-    "check": "tsgo --noEmit -p tsconfig.json && npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && tsgo --noEmit -p tsconfig.json && npm run build",
     "release": "node scripts/release.js"
   },
   "devDependencies": {
@@ -15,6 +17,7 @@
     "@types/chrome": "^0.1.14",
     "@types/firefox-webext-browser": "^120.0.4",
     "@typescript/native-preview": "^7.0.0-dev.20260307.1",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.2"
   }
 }

@@ -30,7 +30,7 @@ The repo keeps canonical runtime sources in top-level `src/`. Rspack builds thos
 npm run build
 ```
 
-- Bundles `src/background.ts`, `src/content.ts`, and `src/popup.ts` into both browser folders
+- Bundles `src/background/index.ts`, `src/content/index.ts`, and `src/settings/index.ts` into both browser folders
 - Copies `src/popup.html`, `src/popup.css`, and `src/content.css` into both browser folders
 - Run this before loading or reloading the extension in a browser
 

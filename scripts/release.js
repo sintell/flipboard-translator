@@ -62,7 +62,9 @@ function getNextVersion(currentVersion, input) {
     return `${current.major + 1}.0.0`;
   }
 
-  fail(`Release argument must be patch, minor, major, or an explicit x.y.z version. Received: ${input}`);
+  fail(
+    `Release argument must be patch, minor, major, or an explicit x.y.z version. Received: ${input}`,
+  );
 }
 
 function ensureCleanGitTree() {
