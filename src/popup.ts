@@ -4,20 +4,27 @@
   const SETTINGS_KEY = "rwfSettings";
   const SETTINGS_SCHEMA_VERSION = 1;
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
-  const log = globalThis.RWF_createLogger("popup", () => currentSettings.debugLogs);
+  const log = globalThis.RWF_createLogger(
+    "popup",
+    () => currentSettings.debugLogs,
+  );
 
   const refs = {
     wordCount: document.getElementById("wordCount") as HTMLInputElement,
     targetLang: document.getElementById("targetLang") as HTMLSelectElement,
-    refreshSeconds: document.getElementById("refreshSeconds") as HTMLInputElement,
+    refreshSeconds: document.getElementById(
+      "refreshSeconds",
+    ) as HTMLInputElement,
     debugLogs: document.getElementById("debugLogs") as HTMLInputElement,
     runBtn: document.getElementById("runBtn") as HTMLButtonElement,
     pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
     resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
     disableBtn: document.getElementById("disableBtn") as HTMLButtonElement,
-    siteDisableBtn: document.getElementById("siteDisableBtn") as HTMLButtonElement,
+    siteDisableBtn: document.getElementById(
+      "siteDisableBtn",
+    ) as HTMLButtonElement,
     countdown: document.getElementById("countdown") as HTMLParagraphElement,
-    status: document.getElementById("status") as HTMLParagraphElement
+    status: document.getElementById("status") as HTMLParagraphElement,
   };
 
   let countdownTimer = null;
@@ -28,7 +35,11 @@
 
   const api = {
     storageSyncGet(key) {
-      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
+      if (
+        typeof browser !== "undefined" &&
+        browser.storage &&
+        browser.storage.sync
+      ) {
         return browser.storage.sync.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -46,8 +57,15 @@
       });
     },
     storageSyncSet(payload) {
-      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
-        return browser.storage.sync.set(payload).then(() => true).catch(() => false);
+      if (
+        typeof browser !== "undefined" &&
+        browser.storage &&
+        browser.storage.sync
+      ) {
+        return browser.storage.sync
+          .set(payload)
+          .then(() => true)
+          .catch(() => false);
       }
       return new Promise<boolean>((resolve) => {
         try {
@@ -64,7 +82,11 @@
       });
     },
     storageLocalGet(key) {
-      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
+      if (
+        typeof browser !== "undefined" &&
+        browser.storage &&
+        browser.storage.local
+      ) {
         return browser.storage.local.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -82,8 +104,15 @@
       });
     },
     storageLocalSet(payload) {
-      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
-        return browser.storage.local.set(payload).then(() => true).catch(() => false);
+      if (
+        typeof browser !== "undefined" &&
+        browser.storage &&
+        browser.storage.local
+      ) {
+        return browser.storage.local
+          .set(payload)
+          .then(() => true)
+          .catch(() => false);
       }
       return new Promise<boolean>((resolve) => {
         try {
@@ -101,11 +130,15 @@
     },
     tabsQueryActive() {
       if (typeof browser !== "undefined" && browser.tabs) {
-        return browser.tabs.query({ active: true, currentWindow: true }).catch(() => []);
+        return browser.tabs
+          .query({ active: true, currentWindow: true })
+          .catch(() => []);
       }
       return new Promise((resolve) => {
         try {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => resolve(tabs || []));
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) =>
+            resolve(tabs || []),
+          );
         } catch (_err) {
           resolve([]);
         }
@@ -117,12 +150,14 @@
       }
       return new Promise((resolve) => {
         try {
-          chrome.tabs.sendMessage(tabId, message, (response) => resolve(response || null));
+          chrome.tabs.sendMessage(tabId, message, (response) =>
+            resolve(response || null),
+          );
         } catch (_err) {
           resolve(null);
         }
       });
-    }
+    },
   };
 
   function clampInt(value, min, max, fallback) {
@@ -133,13 +168,41 @@
 
   function normalizeSettings(input) {
     const merged = Object.assign({}, DEFAULT_SETTINGS, input || {});
-    merged.wordCount = clampInt(merged.wordCount, 1, 40, DEFAULT_SETTINGS.wordCount);
-    merged.refreshSeconds = clampInt(merged.refreshSeconds, 5, 86400, DEFAULT_SETTINGS.refreshSeconds);
-    merged.targetLang = String(merged.targetLang || DEFAULT_SETTINGS.targetLang).toLowerCase();
-    merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, DEFAULT_SETTINGS.debugLogs);
-    merged.enabled = globalThis.RWF_normalizeBoolean(merged.enabled, DEFAULT_SETTINGS.enabled);
+    merged.wordCount = clampInt(
+      merged.wordCount,
+      1,
+      40,
+      DEFAULT_SETTINGS.wordCount,
+    );
+    merged.refreshSeconds = clampInt(
+      merged.refreshSeconds,
+      5,
+      86400,
+      DEFAULT_SETTINGS.refreshSeconds,
+    );
+    merged.targetLang = String(
+      merged.targetLang || DEFAULT_SETTINGS.targetLang,
+    ).toLowerCase();
+    merged.debugLogs = globalThis.RWF_normalizeBoolean(
+      merged.debugLogs,
+      DEFAULT_SETTINGS.debugLogs,
+    );
+    merged.enabled = globalThis.RWF_normalizeBoolean(
+      merged.enabled,
+      DEFAULT_SETTINGS.enabled,
+    );
     merged.disabledDomains = Array.isArray(merged.disabledDomains)
-      ? Array.from(new Set(merged.disabledDomains.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)))
+      ? Array.from(
+        new Set(
+          merged.disabledDomains
+            .map((value) =>
+              String(value || "")
+                .trim()
+                .toLowerCase(),
+            )
+            .filter(Boolean),
+        ),
+      )
       : [];
     if (!["ko", "es", "ka"].includes(merged.targetLang)) {
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
@@ -149,22 +212,28 @@
 
   function normalizeSettingsRecord(input) {
     const raw = input && typeof input === "object" ? input : null;
-    const hasWrappedValue = Boolean(raw && raw.value && typeof raw.value === "object");
+    const hasWrappedValue = Boolean(
+      raw && raw.value && typeof raw.value === "object",
+    );
     const hasStoredValue = hasWrappedValue || Boolean(raw);
     const settings = normalizeSettings(hasWrappedValue ? raw.value : raw);
-    const updatedAtCandidate = hasWrappedValue ? raw.updatedAt : raw && raw.updatedAt;
+    const updatedAtCandidate = hasWrappedValue
+      ? raw.updatedAt
+      : raw && raw.updatedAt;
     const updatedAt = Number(updatedAtCandidate);
     return {
       value: settings,
       updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
       version: SETTINGS_SCHEMA_VERSION,
-      hasStoredValue
+      hasStoredValue,
     };
   }
 
   function pickBestSettingsRecord(syncRecord, localRecord) {
     if (localRecord.updatedAt !== syncRecord.updatedAt) {
-      return localRecord.updatedAt > syncRecord.updatedAt ? localRecord : syncRecord;
+      return localRecord.updatedAt > syncRecord.updatedAt
+        ? localRecord
+        : syncRecord;
     }
     if (localRecord.hasStoredValue !== syncRecord.hasStoredValue) {
       return localRecord.hasStoredValue ? localRecord : syncRecord;
@@ -176,14 +245,14 @@
     return {
       value: record.value,
       updatedAt: record.updatedAt,
-      version: record.version
+      version: record.version,
     };
   }
 
   async function saveSettingsRecord(record) {
     const [syncOk, localOk] = await Promise.all([
       api.storageSyncSet({ [SETTINGS_KEY]: record }),
-      api.storageLocalSet({ [SETTINGS_KEY]: record })
+      api.storageLocalSet({ [SETTINGS_KEY]: record }),
     ]);
     return syncOk || localOk;
   }
@@ -191,17 +260,27 @@
   async function loadStoredSettingsRecord() {
     const [fromSync, fromLocal] = await Promise.all([
       api.storageSyncGet(SETTINGS_KEY),
-      api.storageLocalGet(SETTINGS_KEY)
+      api.storageLocalGet(SETTINGS_KEY),
     ]);
-    const syncRecord = normalizeSettingsRecord(fromSync ? fromSync[SETTINGS_KEY] : undefined);
-    const localRecord = normalizeSettingsRecord(fromLocal ? fromLocal[SETTINGS_KEY] : undefined);
+    const syncRecord = normalizeSettingsRecord(
+      fromSync ? fromSync[SETTINGS_KEY] : undefined,
+    );
+    const localRecord = normalizeSettingsRecord(
+      fromLocal ? fromLocal[SETTINGS_KEY] : undefined,
+    );
     const bestRecord = pickBestSettingsRecord(syncRecord, localRecord);
     const storedBestRecord = toStoredSettingsRecord(bestRecord);
 
-    if (JSON.stringify(toStoredSettingsRecord(syncRecord)) !== JSON.stringify(storedBestRecord)) {
+    if (
+      JSON.stringify(toStoredSettingsRecord(syncRecord)) !==
+      JSON.stringify(storedBestRecord)
+    ) {
       await api.storageSyncSet({ [SETTINGS_KEY]: storedBestRecord });
     }
-    if (JSON.stringify(toStoredSettingsRecord(localRecord)) !== JSON.stringify(storedBestRecord)) {
+    if (
+      JSON.stringify(toStoredSettingsRecord(localRecord)) !==
+      JSON.stringify(storedBestRecord)
+    ) {
       await api.storageLocalSet({ [SETTINGS_KEY]: storedBestRecord });
     }
 
@@ -215,26 +294,33 @@
       wordCount: refs.wordCount.value,
       targetLang: refs.targetLang.value,
       refreshSeconds: refs.refreshSeconds.value,
-      debugLogs: refs.debugLogs.checked
+      debugLogs: refs.debugLogs.checked,
     });
   }
 
   function isHostnameDisabled(settings, hostname = activeHostname) {
     if (!hostname) return false;
-    return Array.isArray(settings.disabledDomains) && settings.disabledDomains.includes(hostname);
+    return (
+      Array.isArray(settings.disabledDomains) &&
+      settings.disabledDomains.includes(hostname)
+    );
   }
 
   function getHostnameFromUrl(url) {
     try {
       const parsed = new URL(String(url || ""));
-      return String(parsed.hostname || "").trim().toLowerCase();
+      return String(parsed.hostname || "")
+        .trim()
+        .toLowerCase();
     } catch (_err) {
       return "";
     }
   }
 
   function updateToggleButtons() {
-    refs.disableBtn.textContent = currentSettings.enabled ? "Disable" : "Enable";
+    refs.disableBtn.textContent = currentSettings.enabled
+      ? "Disable"
+      : "Enable";
     if (activeHostname) {
       refs.siteDisableBtn.disabled = false;
       refs.siteDisableBtn.textContent = isHostnameDisabled(currentSettings)
@@ -264,7 +350,10 @@
 
   async function persistSettings(nextSettings) {
     const settings = normalizeSettings(nextSettings);
-    const record = normalizeSettingsRecord({ value: settings, updatedAt: Date.now() });
+    const record = normalizeSettingsRecord({
+      value: settings,
+      updatedAt: Date.now(),
+    });
     currentSettings = settings;
     log("saveSettings", record);
     const saved = await saveSettingsRecord(record);
@@ -335,7 +424,10 @@
   }
 
   async function getActiveTabInfo() {
-    const tabs = await api.tabsQueryActive() as Array<{ id?: number; url?: string }>;
+    const tabs = (await api.tabsQueryActive()) as Array<{
+      id?: number;
+      url?: string;
+    }>;
     log("activeTab.tabs", tabs);
     if (!tabs.length || typeof tabs[0].id !== "number") {
       return null;
@@ -345,7 +437,7 @@
     updateToggleButtons();
     return {
       id: tabs[0].id,
-      hostname
+      hostname,
     };
   }
 
@@ -355,7 +447,9 @@
     const response = await api.sendMessage(tab.id, { type: "RWF_GET_STATUS" });
     log("status.response", response);
     if (!response || !response.ok || !response.status) return null;
-    activeHostname = String(response.status.hostname || tab.hostname || "").trim().toLowerCase();
+    activeHostname = String(response.status.hostname || tab.hostname || "")
+      .trim()
+      .toLowerCase();
     updateToggleButtons();
     return { tabId: tab.id, status: response.status };
   }
@@ -369,7 +463,9 @@
     }
 
     refs.pauseBtn.textContent = status.paused ? "Resume" : "Pause";
-    activeHostname = String(status.hostname || activeHostname || "").trim().toLowerCase();
+    activeHostname = String(status.hostname || activeHostname || "")
+      .trim()
+      .toLowerCase();
     updateToggleButtons();
     if (!status.enabled) {
       refs.countdown.textContent = "Automatic changes disabled everywhere";
@@ -421,7 +517,7 @@
     const nextPaused = !snapshot.status.paused;
     const response = await api.sendMessage(snapshot.tabId, {
       type: "RWF_SET_PAUSED",
-      paused: nextPaused
+      paused: nextPaused,
     });
     log("pause.toggle.response", response);
     await refreshCountdown();
@@ -431,7 +527,9 @@
   async function toggleGlobalEnabled() {
     const baseSettings = formToSettings();
     const nextEnabled = !currentSettings.enabled;
-    const result = await persistSettings(Object.assign({}, baseSettings, { enabled: nextEnabled }));
+    const result = await persistSettings(
+      Object.assign({}, baseSettings, { enabled: nextEnabled }),
+    );
     if (!result.saved) {
       setStatus("Settings save failed.");
       return false;
@@ -439,7 +537,11 @@
     if (!nextEnabled) {
       await resetOnActiveTab();
     }
-    setStatus(nextEnabled ? "Automatic changes enabled everywhere." : "Automatic changes disabled everywhere.");
+    setStatus(
+      nextEnabled
+        ? "Automatic changes enabled everywhere."
+        : "Automatic changes disabled everywhere.",
+    );
     await refreshCountdown();
     return true;
   }
@@ -452,12 +554,16 @@
     }
     activeHostname = tab.hostname;
     const baseSettings = formToSettings();
-    const disabledDomains = Array.isArray(baseSettings.disabledDomains) ? baseSettings.disabledDomains.slice() : [];
+    const disabledDomains = Array.isArray(baseSettings.disabledDomains)
+      ? baseSettings.disabledDomains.slice()
+      : [];
     const nextSiteDisabled = !disabledDomains.includes(tab.hostname);
     const nextDisabledDomains = nextSiteDisabled
       ? disabledDomains.concat(tab.hostname)
       : disabledDomains.filter((value) => value !== tab.hostname);
-    const result = await persistSettings(Object.assign({}, baseSettings, { disabledDomains: nextDisabledDomains }));
+    const result = await persistSettings(
+      Object.assign({}, baseSettings, { disabledDomains: nextDisabledDomains }),
+    );
     if (!result.saved) {
       setStatus("Settings save failed.");
       return false;
@@ -465,7 +571,11 @@
     if (nextSiteDisabled) {
       await resetOnActiveTab();
     }
-    setStatus(nextSiteDisabled ? "Automatic changes disabled on this site." : "Automatic changes enabled on this site.");
+    setStatus(
+      nextSiteDisabled
+        ? "Automatic changes disabled on this site."
+        : "Automatic changes enabled on this site.",
+    );
     await refreshCountdown();
     return true;
   }
@@ -478,7 +588,12 @@
     applySettingsToForm(settings);
     updateToggleButtons();
 
-    [refs.wordCount, refs.targetLang, refs.refreshSeconds, refs.debugLogs].forEach((ref) => {
+    [
+      refs.wordCount,
+      refs.targetLang,
+      refs.refreshSeconds,
+      refs.debugLogs,
+    ].forEach((ref) => {
       ref.addEventListener("input", scheduleAutosave);
       ref.addEventListener("change", scheduleAutosave);
     });
@@ -486,14 +601,23 @@
     refs.runBtn.addEventListener("click", async () => {
       const result = await flushAutosave();
       const ok = await runOnActiveTab();
-      if (ok) setStatus(result.saved ? "Translation run started." : "Translation started, but settings were not saved.");
+      if (ok)
+        setStatus(
+          result.saved
+            ? "Translation run started."
+            : "Translation started, but settings were not saved.",
+        );
       await refreshCountdown();
     });
 
     refs.pauseBtn.addEventListener("click", async () => {
       const ok = await togglePauseOnActiveTab();
       if (ok) {
-        setStatus(refs.pauseBtn.textContent === "Resume" ? "Auto change paused." : "Auto change resumed.");
+        setStatus(
+          refs.pauseBtn.textContent === "Resume"
+            ? "Auto change paused."
+            : "Auto change resumed.",
+        );
       }
     });
 

@@ -11,9 +11,9 @@ function createConfig(browserTarget) {
     context: rootDir,
     target: ["web", "es2020"],
     entry: {
-      background: ["./src/logging.ts", "./src/background.ts"],
-      content: ["./src/logging.ts", "./src/content.ts"],
-      popup: ["./src/logging.ts", "./src/popup.ts"],
+      background: "./src/background/index.ts",
+      content: "./src/content/index.ts",
+      popup: "./src/settings/index.ts",
     },
     output: {
       path: path.join(rootDir, browserTarget, "src"),
