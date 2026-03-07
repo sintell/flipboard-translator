@@ -1,8 +1,15 @@
 export function sanitizeTranslation(value: unknown, fallback: string): string {
-  const raw = String(value || "").trim();
-  if (!raw) return fallback;
-  const tokenMatch = raw.match(/\p{L}[\p{L}\p{M}'’-]*/u);
-  return tokenMatch ? tokenMatch[0] : fallback;
+  const raw = String(value || "")
+    .trim()
+    .replace(/\s+/gu, " ");
+  if (!raw || !/\p{L}/u.test(raw)) return fallback;
+
+  const cleaned = raw
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/[^\p{L}\p{M}\p{N}'’ -]+$/u, "")
+    .trim();
+
+  return cleaned && /\p{L}/u.test(cleaned) ? cleaned : fallback;
 }
 
 export function sanitizeTranscription(value: unknown): string {
