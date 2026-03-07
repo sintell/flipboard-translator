@@ -1,6 +1,7 @@
 (function () {
   const CACHE_KEY = "rwfTranslationCache";
   const SETTINGS_KEY = "rwfSettings";
+  const SETTINGS_SCHEMA_VERSION = 1;
   const MAX_CACHE_ENTRIES = 1500;
   let debugLogsEnabled = globalThis.RWF_DEFAULT_SETTINGS.debugLogs;
   const log = globalThis.RWF_createLogger("background", () => debugLogsEnabled);
@@ -28,7 +29,13 @@
     const area = getStorageLocal();
     return new Promise((resolve) => {
       try {
-        const maybePromise = area.get(key, (result) => resolve(result || {}));
+        const maybePromise = area.get(key, (result) => {
+          if (chrome.runtime && chrome.runtime.lastError) {
+            resolve({});
+            return;
+          }
+          resolve(result || {});
+        });
         if (maybePromise && typeof maybePromise.then === "function") {
           maybePromise.then((result) => resolve(result || {})).catch(() => resolve({}));
         }
@@ -40,14 +47,20 @@
 
   function storageLocalSet(payload) {
     const area = getStorageLocal();
-    return new Promise<void>((resolve) => {
+    return new Promise<boolean>((resolve) => {
       try {
-        const maybePromise = area.set(payload, () => resolve());
+        const maybePromise = area.set(payload, () => {
+          if (chrome.runtime && chrome.runtime.lastError) {
+            resolve(false);
+            return;
+          }
+          resolve(true);
+        });
         if (maybePromise && typeof maybePromise.then === "function") {
-          maybePromise.then(() => resolve()).catch(() => resolve());
+          maybePromise.then(() => resolve(true)).catch(() => resolve(false));
         }
       } catch (_err) {
-        resolve();
+        resolve(false);
       }
     });
   }
@@ -56,7 +69,13 @@
     const area = getStorageSync();
     return new Promise((resolve) => {
       try {
-        const maybePromise = area.get(key, (result) => resolve(result || {}));
+        const maybePromise = area.get(key, (result) => {
+          if (chrome.runtime && chrome.runtime.lastError) {
+            resolve({});
+            return;
+          }
+          resolve(result || {});
+        });
         if (maybePromise && typeof maybePromise.then === "function") {
           maybePromise.then((result) => resolve(result || {})).catch(() => resolve({}));
         }
@@ -72,13 +91,92 @@
     return merged;
   }
 
-  async function loadStoredSettings() {
-    const fromSync = await storageSyncGet(SETTINGS_KEY);
-    if (fromSync && fromSync[SETTINGS_KEY]) {
-      return fromSync[SETTINGS_KEY];
+  function normalizeSettingsRecord(input) {
+    const raw = input && typeof input === "object" ? input : null;
+    const hasWrappedValue = Boolean(raw && raw.value && typeof raw.value === "object");
+    const hasStoredValue = hasWrappedValue || Boolean(raw);
+    const settings = normalizeSettings(hasWrappedValue ? raw.value : raw);
+    const updatedAtCandidate = hasWrappedValue ? raw.updatedAt : raw && raw.updatedAt;
+    const updatedAt = Number(updatedAtCandidate);
+    return {
+      value: settings,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
+      version: SETTINGS_SCHEMA_VERSION,
+      hasStoredValue
+    };
+  }
+
+  function pickBestSettingsRecord(syncRecord, localRecord) {
+    if (localRecord.updatedAt !== syncRecord.updatedAt) {
+      return localRecord.updatedAt > syncRecord.updatedAt ? localRecord : syncRecord;
     }
-    const fromLocal = await storageLocalGet(SETTINGS_KEY);
-    return fromLocal ? fromLocal[SETTINGS_KEY] : undefined;
+    if (localRecord.hasStoredValue !== syncRecord.hasStoredValue) {
+      return localRecord.hasStoredValue ? localRecord : syncRecord;
+    }
+    return syncRecord;
+  }
+
+  function toStoredSettingsRecord(record) {
+    return {
+      value: record.value,
+      updatedAt: record.updatedAt,
+      version: record.version
+    };
+  }
+
+  async function loadSettingsRecordFromStorage() {
+    const [fromSync, fromLocal] = await Promise.all([
+      storageSyncGet(SETTINGS_KEY),
+      storageLocalGet(SETTINGS_KEY)
+    ]);
+    const syncRecord = normalizeSettingsRecord(fromSync ? fromSync[SETTINGS_KEY] : undefined);
+    const localRecord = normalizeSettingsRecord(fromLocal ? fromLocal[SETTINGS_KEY] : undefined);
+    const bestRecord = pickBestSettingsRecord(syncRecord, localRecord);
+    const storedBestRecord = toStoredSettingsRecord(bestRecord);
+    const needsSyncUpdate = JSON.stringify(toStoredSettingsRecord(syncRecord)) !== JSON.stringify(storedBestRecord);
+    const needsLocalUpdate = JSON.stringify(toStoredSettingsRecord(localRecord)) !== JSON.stringify(storedBestRecord);
+
+    if (needsSyncUpdate) {
+      await storageSyncSetRecord(storedBestRecord);
+    }
+    if (needsLocalUpdate) {
+      await storageLocalSet({ [SETTINGS_KEY]: storedBestRecord });
+    }
+
+    return storedBestRecord;
+  }
+
+  function storageSyncSetRecord(record) {
+    const area = getStorageSync();
+    return new Promise<boolean>((resolve) => {
+      try {
+        const maybePromise = area.set({ [SETTINGS_KEY]: record }, () => {
+          if (chrome.runtime && chrome.runtime.lastError) {
+            resolve(false);
+            return;
+          }
+          resolve(true);
+        });
+        if (maybePromise && typeof maybePromise.then === "function") {
+          maybePromise.then(() => resolve(true)).catch(() => resolve(false));
+        }
+      } catch (_err) {
+        resolve(false);
+      }
+    });
+  }
+
+  async function saveSettingsRecord(record) {
+    const [syncOk, localOk] = await Promise.all([
+      storageSyncSetRecord(record),
+      storageLocalSet({ [SETTINGS_KEY]: record })
+    ]);
+    return syncOk || localOk;
+  }
+
+  async function loadStoredSettings() {
+    const record = await loadSettingsRecordFromStorage();
+    return record.value;
   }
 
   async function refreshDebugLogsSetting() {
@@ -89,24 +187,40 @@
 
   async function loadCache() {
     const result = await storageLocalGet(CACHE_KEY);
-    return result[CACHE_KEY] || {};
+    const raw = result ? result[CACHE_KEY] : undefined;
+    if (!raw || typeof raw !== "object") return {};
+    return raw;
+  }
+
+  function buildTrimmedCache(cache, limit) {
+    const trimmed = {};
+    const ordered = Object.keys(cache)
+      .map((key) => ({ key, ts: cache[key] && cache[key].ts ? cache[key].ts : 0 }))
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, Math.max(0, limit));
+    for (const entry of ordered) {
+      trimmed[entry.key] = cache[entry.key];
+    }
+    return trimmed;
   }
 
   async function saveCache(cache) {
     const keys = Object.keys(cache);
-    if (keys.length > MAX_CACHE_ENTRIES) {
-      const trimmed = {};
-      const ordered = keys
-        .map((key) => ({ key, ts: cache[key] && cache[key].ts ? cache[key].ts : 0 }))
-        .sort((a, b) => b.ts - a.ts)
-        .slice(0, MAX_CACHE_ENTRIES);
-      for (const entry of ordered) {
-        trimmed[entry.key] = cache[entry.key];
+    let limit = Math.min(keys.length, MAX_CACHE_ENTRIES);
+
+    while (limit >= 0) {
+      const nextCache = limit === keys.length ? cache : buildTrimmedCache(cache, limit);
+      const saved = await storageLocalSet({ [CACHE_KEY]: nextCache });
+      if (saved) {
+        return nextCache;
       }
-      await storageLocalSet({ [CACHE_KEY]: trimmed });
-      return;
+      if (limit === 0) {
+        break;
+      }
+      limit = Math.floor(limit * 0.75);
     }
-    await storageLocalSet({ [CACHE_KEY]: cache });
+
+    return {};
   }
 
   function sanitizeTranslation(value, fallback) {
@@ -316,29 +430,34 @@
     return result;
   }
 
+  async function reconcileStoredState() {
+    const record = await loadSettingsRecordFromStorage();
+    debugLogsEnabled = record.value.debugLogs;
+  }
+
   const runtime = getRuntime();
   if (runtime && runtime.onStartup) {
     runtime.onStartup.addListener(() => {
-      refreshDebugLogsSetting();
+      reconcileStoredState();
     });
   }
   if (runtime && runtime.onInstalled) {
     runtime.onInstalled.addListener(() => {
-      refreshDebugLogsSetting();
+      reconcileStoredState();
     });
   }
   if (typeof browser !== "undefined" && browser.storage && browser.storage.onChanged) {
     browser.storage.onChanged.addListener((changes, areaName) => {
       if ((areaName === "sync" || areaName === "local") && changes && changes[SETTINGS_KEY]) {
         const nextValue = changes[SETTINGS_KEY].newValue;
-        debugLogsEnabled = normalizeSettings(nextValue).debugLogs;
+        debugLogsEnabled = normalizeSettingsRecord(nextValue).value.debugLogs;
       }
     });
   } else if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if ((areaName === "sync" || areaName === "local") && changes && changes[SETTINGS_KEY]) {
         const nextValue = changes[SETTINGS_KEY].newValue;
-        debugLogsEnabled = normalizeSettings(nextValue).debugLogs;
+        debugLogsEnabled = normalizeSettingsRecord(nextValue).value.debugLogs;
       }
     });
   }

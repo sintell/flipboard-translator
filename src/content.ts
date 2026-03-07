@@ -3,6 +3,7 @@
   const ALLOWED_TARGET_LANGS = new Set(["ko", "es", "ka"]);
 
   const SETTINGS_KEY = "rwfSettings";
+  const SETTINGS_SCHEMA_VERSION = 1;
   const MIN_WORD_LEN = 4;
 
   let runTimer = null;
@@ -20,10 +21,32 @@
       return new Promise((resolve) => {
         try {
           chrome.storage.sync.get(key, (result) => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve({});
+              return;
+            }
             resolve(result || {});
           });
         } catch (_err) {
           resolve({});
+        }
+      });
+    },
+    storageSyncSet(payload) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
+        return browser.storage.sync.set(payload).then(() => true).catch(() => false);
+      }
+      return new Promise<boolean>((resolve) => {
+        try {
+          chrome.storage.sync.set(payload, () => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve(false);
+              return;
+            }
+            resolve(true);
+          });
+        } catch (_err) {
+          resolve(false);
         }
       });
     },
@@ -34,10 +57,32 @@
       return new Promise((resolve) => {
         try {
           chrome.storage.local.get(key, (result) => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve({});
+              return;
+            }
             resolve(result || {});
           });
         } catch (_err) {
           resolve({});
+        }
+      });
+    },
+    storageLocalSet(payload) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
+        return browser.storage.local.set(payload).then(() => true).catch(() => false);
+      }
+      return new Promise<boolean>((resolve) => {
+        try {
+          chrome.storage.local.set(payload, () => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve(false);
+              return;
+            }
+            resolve(true);
+          });
+        } catch (_err) {
+          resolve(false);
         }
       });
     },
@@ -81,6 +126,59 @@
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
     }
     return merged;
+  }
+
+  function normalizeSettingsRecord(input) {
+    const raw = input && typeof input === "object" ? input : null;
+    const hasWrappedValue = Boolean(raw && raw.value && typeof raw.value === "object");
+    const hasStoredValue = hasWrappedValue || Boolean(raw);
+    const settings = normalizeSettings(hasWrappedValue ? raw.value : raw);
+    const updatedAtCandidate = hasWrappedValue ? raw.updatedAt : raw && raw.updatedAt;
+    const updatedAt = Number(updatedAtCandidate);
+    return {
+      value: settings,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
+      version: SETTINGS_SCHEMA_VERSION,
+      hasStoredValue
+    };
+  }
+
+  function pickBestSettingsRecord(syncRecord, localRecord) {
+    if (localRecord.updatedAt !== syncRecord.updatedAt) {
+      return localRecord.updatedAt > syncRecord.updatedAt ? localRecord : syncRecord;
+    }
+    if (localRecord.hasStoredValue !== syncRecord.hasStoredValue) {
+      return localRecord.hasStoredValue ? localRecord : syncRecord;
+    }
+    return syncRecord;
+  }
+
+  function toStoredSettingsRecord(record) {
+    return {
+      value: record.value,
+      updatedAt: record.updatedAt,
+      version: record.version
+    };
+  }
+
+  async function loadStoredSettingsRecord() {
+    const [syncResult, localResult] = await Promise.all([
+      api.storageSyncGet(SETTINGS_KEY),
+      api.storageLocalGet(SETTINGS_KEY)
+    ]);
+    const syncRecord = normalizeSettingsRecord(syncResult ? syncResult[SETTINGS_KEY] : undefined);
+    const localRecord = normalizeSettingsRecord(localResult ? localResult[SETTINGS_KEY] : undefined);
+    const bestRecord = pickBestSettingsRecord(syncRecord, localRecord);
+    const storedBestRecord = toStoredSettingsRecord(bestRecord);
+
+    if (JSON.stringify(toStoredSettingsRecord(syncRecord)) !== JSON.stringify(storedBestRecord)) {
+      await api.storageSyncSet({ [SETTINGS_KEY]: storedBestRecord });
+    }
+    if (JSON.stringify(toStoredSettingsRecord(localRecord)) !== JSON.stringify(storedBestRecord)) {
+      await api.storageLocalSet({ [SETTINGS_KEY]: storedBestRecord });
+    }
+
+    return storedBestRecord;
   }
 
   function clampInt(value, min, max, fallback) {
@@ -349,14 +447,9 @@
   }
 
   async function loadSettings() {
-    const syncResult = await api.storageSyncGet(SETTINGS_KEY);
-    const localResult = await api.storageLocalGet(SETTINGS_KEY);
-    const raw = (syncResult && syncResult[SETTINGS_KEY])
-      ? syncResult[SETTINGS_KEY]
-      : (localResult ? localResult[SETTINGS_KEY] : undefined);
-    const normalized = normalizeSettings(raw);
-    log("loadSettings", { raw, normalized });
-    return normalized;
+    const record = await loadStoredSettingsRecord();
+    log("loadSettings", record);
+    return record.value;
   }
 
   function clearRunTimer() {
