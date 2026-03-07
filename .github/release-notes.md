@@ -1,1 +1,1 @@
-Removed excessive logging to browser console; added debug logging toggle to settings panel
+Features: settings now save automatically, translation settings/cache handling is more reliable, and you can disable the extension globally or just on the current site; Other technical improvements: internal refactoring, code formatting cleanup, stricter typing, and minor timer-related fixes.
