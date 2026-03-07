@@ -1,10 +1,13 @@
 import { DEFAULT_SETTINGS } from "../shared/default-settings";
 import { createLogger } from "../shared/logging";
 
+type IntervalHandle = ReturnType<typeof globalThis.setInterval>;
+type TimeoutHandle = ReturnType<typeof globalThis.setTimeout>;
+
 export const settingsState = {
   currentSettings: Object.assign({}, DEFAULT_SETTINGS),
-  countdownTimer: null as number | null,
-  autosaveTimer: null as number | null,
+  countdownTimer: null as IntervalHandle | null,
+  autosaveTimer: null as TimeoutHandle | null,
   autosaveRequestId: 0,
   activeHostname: "",
 };
