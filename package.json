@@ -1,11 +1,13 @@
 {
   "name": "flipboard-translator",
   "private": true,
+  "version": "1.0.0",
   "scripts": {
     "clean": "node scripts/clean.js",
     "build": "rspack build",
     "build:watch": "rspack build --watch",
-    "check": "tsgo --noEmit -p tsconfig.json && npm run build"
+    "check": "tsgo --noEmit -p tsconfig.json && npm run build",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "@rspack/cli": "^1.6.2",
