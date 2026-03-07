@@ -6,15 +6,18 @@ Agent guidance for working in `flipboard-translator`.
 
 - Type: browser extension (Chrome MV3 + Firefox MV2 fallback).
 - Runtime stack: TypeScript, HTML, CSS with Rspack builds.
-- Layout: the repo keeps canonical runtime files in top-level `src/`; `chrome/src/` and `firefox/src/` are generated build outputs for loading the extension in each browser.
+- Layout: the repo keeps canonical source files in top-level `src/`, organized into `src/background/`, `src/content/`, `src/settings/`, and `src/shared/`; `chrome/src/` and `firefox/src/` are generated build outputs for loading the extension in each browser.
 - Entry points:
   - `chrome/manifest.json` (Chrome/Chromium)
   - `firefox/manifest.json` (Firefox fallback)
-  - `src/background.ts` (translation + cache logic)
-  - `src/content.ts` (DOM scanning/replacement + scheduler)
-  - `src/popup.ts` (popup UI + settings + commands)
-- `package.json` defines the Rspack and type-check workflows.
-- No configured CI scripts are present in this repo.
+  - `src/background/index.ts` (background runtime bootstrap)
+  - `src/content/index.ts` (content script bootstrap)
+  - `src/settings/index.ts` (popup/settings UI bootstrap)
+  - `src/popup.html`, `src/popup.css`, `src/content.css` (copied static assets)
+- Translation logic lives in `src/background/translation-service.ts` with provider adapters under `src/background/providers/`.
+- Shared settings, browser wrappers, constants, and message types live under `src/shared/`.
+- `package.json` defines clean, build, format, check, and release workflows.
+- GitHub release automation is configured in `.github/workflows/release.yml`.
 
 ## 2) Cursor / Copilot Rules
 
@@ -27,7 +30,7 @@ Agent guidance for working in `flipboard-translator`.
 
 ## 3) Build, Lint, and Test Commands
 
-This repository has a minimal npm-based build flow and no formal lint/test framework.
+This repository has npm-based build/format/release workflows and no formal automated test framework.
 
 ### Build
 
@@ -38,8 +41,10 @@ This repository has a minimal npm-based build flow and no formal lint/test frame
 
 ### Lint
 
-- No ESLint/Prettier config is committed.
-- Combined syntax + build sanity check: `npm run check`
+- Formatting is handled through Prettier scripts in `package.json`.
+- Format all files: `npm run format`
+- Check formatting only: `npm run format:check`
+- Combined syntax + formatting + build sanity check: `npm run check`
 - If you need a direct type-only check, run:
 
 ```bash
@@ -65,6 +70,13 @@ tsgo --noEmit -p tsconfig.json
   2. Open `about:debugging#/runtime/this-firefox`
   3. Click Load Temporary Add-on...
   4. Select `firefox/manifest.json`
+- Popup/settings verification:
+  1. Confirm settings load into the popup form.
+  2. Verify `Run now`, `Pause/Resume`, and `Reset translation` still work.
+  3. Verify `Disable` toggles global auto changes.
+  4. Verify `Disable on this site` updates site-specific behavior on the active tab.
+  5. Verify the countdown and status text update after popup actions.
+  6. Optionally enable `debug logs` and confirm logging toggles cleanly.
 
 ## 4) Single-Test Guidance for Future Additions
 
@@ -90,6 +102,13 @@ Keep AGENTS.md updated when these become real commands.
 
 Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 
+Prefer the current modular folders as the source of truth when checking style:
+
+- `src/background/*.ts`
+- `src/content/*.ts`
+- `src/settings/*.ts`
+- `src/shared/*.ts`
+
 ### TypeScript basics
 
 - Use modern TS targeting ES2020 output.
@@ -102,9 +121,10 @@ Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 
 ### Imports / modules
 
-- There are currently no ESM imports/exports in runtime files.
-- Do not introduce bundler-specific import patterns without adding toolchain docs.
-- Prefer local helper functions over introducing module complexity.
+- The current codebase uses ESM-style TypeScript imports/exports throughout runtime and shared files.
+- Keep imports relative and consistent with existing folder boundaries.
+- Do not introduce new bundler-specific import patterns without adding toolchain docs.
+- Prefer local helper functions and small focused modules over unnecessary abstraction.
 
 ### Naming
 
@@ -145,6 +165,7 @@ Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 ### Cross-browser API usage
 
 - Maintain browser/chrome compatibility wrappers (Promise + callback fallback).
+- Prefer shared wrappers in `src/shared/browser-api.ts` over direct API calls when practical.
 - Do not assume only `browser.*` or only `chrome.*` is available.
 - Keep manifest compatibility in mind when changing background behavior.
 
@@ -169,13 +190,14 @@ Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 - If adding lint/test/build tooling, update:
   - `README.md`
   - this `AGENTS.md` command section
+- If you change release automation, keep `.github/workflows/release.yml`, release notes handling, and `npm run release` documentation aligned.
 - If you add automated tests, document exact single-test command here.
-- Keep manifests and runtime behavior aligned across Chrome/Firefox paths.
+- Keep manifests and generated browser runtime behavior aligned across Chrome/Firefox paths.
 
 ## 7) Quick Pre-PR Checklist
 
 - Type checks and build pass (`npm run check`).
 - Extension loads in at least one target browser.
-- Popup actions still work (Save, Run now, Pause/Resume, Reset translation).
+- Popup actions still work (Save, Run now, Pause/Resume, Reset translation, Disable, Disable on this site).
 - Content replacement still restores original words correctly.
 - Translation fallback behavior still degrades gracefully on API errors.
