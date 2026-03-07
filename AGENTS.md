@@ -180,6 +180,7 @@ Prefer the current modular folders as the source of truth when checking style:
 - Make minimal, targeted changes.
 - Do not add new dependencies/tooling unless task requires it.
 - When a user question is necessary, use the question tool instead of asking in plain text.
+- When a user asks to prepare a release message, release notes, or a changelog, always use the skill `prepare_changelog`.
 - If adding lint/test/build tooling, update:
   - `README.md`
   - this `AGENTS.md` command section
