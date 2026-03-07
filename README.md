@@ -87,28 +87,25 @@ npm run release -- patch --notes "Fix translation cache invalidation and improve
 - Spanish (`es`)
 - Georgian (`ka`)
 
-## Load in Chrome
+## Install in browsers
 
-1. Open `chrome://extensions`
-2. Enable `Developer mode`
-3. Run `npm run build`
-4. Click `Load unpacked`
-5. Select the `chrome/` folder
+Download the latest release from [releases page](https://github.com/sintell/flipboard-translator/releases), then follow the instructions for your browser.
 
-## Load in Firefox
+### Load in Chrome
 
-This project includes two browser-specific manifest folders:
+1. Download the latest release from the GitHub releases page.
+2. Extract the release archive.
+3. Open `chrome://extensions`
+4. Enable `Developer mode`
+5. Click `Load unpacked`
+6. Select the extracted `chrome/` folder
 
-- `chrome/manifest.json` for Chrome/Chromium (MV3 service worker)
-- `firefox/manifest.json` for Firefox (MV2 fallback)
-- Generated runtime files under each browser folder's `src/` directory (`background.js`, `content.js`, `content.css`, `popup.html`, `popup.js`, `popup.css`)
+### Install in Firefox
 
-To load in Firefox:
-
-1. Open `about:debugging#/runtime/this-firefox`
-2. Run `npm run build`
-3. Click `Load Temporary Add-on...`
-4. Select `firefox/manifest.json`
+1. Download the latest Firefox `.xpi` from the GitHub releases page.
+2. Install it by either:
+   - clicking the `.xpi` download link in Firefox, or
+   - dragging the downloaded `.xpi` onto the `about:addons` page.
 
 ## Notes
 
