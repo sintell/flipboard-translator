@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flipboard Translator</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <h1>Flipboard Translator</h1>
+
+      <label class="field" for="wordCount">
+        <span>Random words (X)</span>
+        <input id="wordCount" type="number" min="1" max="40" step="1" />
+      </label>
+
+      <label class="field" for="targetLang">
+        <span>Target language (Y)</span>
+        <select id="targetLang">
+          <option value="ko">Korean</option>
+          <option value="es">Spanish</option>
+          <option value="ka">Georgian</option>
+        </select>
+      </label>
+
+      <label class="field" for="refreshSeconds">
+        <span>Refresh interval (seconds)</span>
+        <input id="refreshSeconds" type="number" min="5" max="86400" step="1" />
+      </label>
+
+      <div class="actions">
+        <button id="saveBtn" type="button">Save settings</button>
+        <button id="runBtn" type="button">Run now</button>
+        <button id="pauseBtn" type="button">Pause</button>
+        <button id="resetBtn" type="button">Reset translation</button>
+      </div>
+
+      <p id="countdown" class="countdown" aria-live="polite">Next change: --</p>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+  </html>

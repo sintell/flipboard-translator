@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "name": "Flipboard Word Translator",
+  "description": "Randomly replaces page words with translated words and optional transcription.",
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "https://api.mymemory.translated.net/*",
+    "https://translate.googleapis.com/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_title": "Flipboard Translator",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
