@@ -5,15 +5,15 @@ Agent guidance for working in `flipboard-translator`.
 ## 1) Project Snapshot
 
 - Type: browser extension (Chrome MV3 + Firefox MV2 fallback).
-- Runtime stack: plain JavaScript, HTML, CSS (no bundler, no TypeScript).
-- Layout: shared runtime files live in top-level `src/`; each browser folder contains its own `manifest.json` and a `src` link back to that shared source.
+- Runtime stack: TypeScript, HTML, CSS with Rspack builds.
+- Layout: the repo keeps canonical runtime files in top-level `src/`; `chrome/src/` and `firefox/src/` are generated build outputs for loading the extension in each browser.
 - Entry points:
   - `chrome/manifest.json` (Chrome/Chromium)
   - `firefox/manifest.json` (Firefox fallback)
-  - `src/background.js` (translation + cache logic)
-  - `src/content.js` (DOM scanning/replacement + scheduler)
-  - `src/popup.js` (popup UI + settings + commands)
-- No `package.json` is present.
+  - `src/background.ts` (translation + cache logic)
+  - `src/content.ts` (DOM scanning/replacement + scheduler)
+  - `src/popup.ts` (popup UI + settings + commands)
+- `package.json` defines the Rspack and type-check workflows.
 - No configured CI scripts are present in this repo.
 
 ## 2) Cursor / Copilot Rules
@@ -27,28 +27,23 @@ Agent guidance for working in `flipboard-translator`.
 
 ## 3) Build, Lint, and Test Commands
 
-This repository currently has no formal build/lint/test toolchain.
+This repository has a minimal npm-based build flow and no formal lint/test framework.
 
 ### Build
 
-- Build step: not required.
-- Packaging is manifest-based; extension loads directly from source files.
+- Install step: `npm install`
+- Build both browser folders: `npm run build`
+- Rebuild on file changes: `npm run build:watch`
+- Clean generated browser `src/` folders: `npm run clean`
 
 ### Lint
 
 - No ESLint/Prettier config is committed.
-- If you need a lightweight syntax sanity check, run Node parse checks:
+- Combined syntax + build sanity check: `npm run check`
+- If you need a direct type-only check, run:
 
 ```bash
-node --check src/background.js
-node --check src/content.js
-node --check src/popup.js
-```
-
-- Optional all-in-one syntax check:
-
-```bash
-for f in src/background.js src/content.js src/popup.js; do node --check "$f"; done
+tsgo --noEmit -p tsconfig.json
 ```
 
 ### Tests
@@ -60,14 +55,16 @@ for f in src/background.js src/content.js src/popup.js; do node --check "$f"; do
 ### Manual verification (current source of truth)
 
 - Chrome:
-  1. Open `chrome://extensions`
-  2. Enable Developer mode
-  3. Click Load unpacked
-  4. Select the `chrome/` folder
+  1. Run `npm run build`
+  2. Open `chrome://extensions`
+  3. Enable Developer mode
+  4. Click Load unpacked
+  5. Select the `chrome/` folder
 - Firefox fallback manifest:
-  1. Open `about:debugging#/runtime/this-firefox`
-  2. Click Load Temporary Add-on...
-  3. Select `firefox/manifest.json`
+  1. Run `npm run build`
+  2. Open `about:debugging#/runtime/this-firefox`
+  3. Click Load Temporary Add-on...
+  4. Select `firefox/manifest.json`
 
 ## 4) Single-Test Guidance for Future Additions
 
@@ -91,11 +88,11 @@ Keep AGENTS.md updated when these become real commands.
 
 ## 5) Code Style and Conventions
 
-Follow existing style in `src/background.js`, `src/content.js`, `src/popup.js`.
+Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 
-### JavaScript basics
+### TypeScript basics
 
-- Use modern plain JS (ES2020+ features already in use).
+- Use modern TS targeting ES2020 output.
 - Wrap top-level script logic in an IIFE: `(function () { ... })();`.
 - Use `const` by default; use `let` only for reassignment.
 - Use semicolons consistently.
@@ -118,7 +115,7 @@ Follow existing style in `src/background.js`, `src/content.js`, `src/popup.js`.
 
 ### Types and data shaping
 
-- No TypeScript; use runtime normalization and guards.
+- Keep TypeScript usage pragmatic; prefer runtime normalization and guards over heavy type abstraction.
 - Normalize persisted/user inputs (`normalizeSettings`, `clampInt`).
 - Coerce uncertain external values with `String(...)` / `Number(...)` carefully.
 - Validate enum-like fields against explicit allowlists.
@@ -176,7 +173,7 @@ Follow existing style in `src/background.js`, `src/content.js`, `src/popup.js`.
 
 ## 7) Quick Pre-PR Checklist
 
-- JS syntax checks pass (`node --check ...`).
+- Type checks and build pass (`npm run check`).
 - Extension loads in at least one target browser.
 - Popup actions still work (Save, Run now, Pause/Resume, Reset translation).
 - Content replacement still restores original words correctly.

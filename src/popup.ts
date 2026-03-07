@@ -10,20 +10,20 @@
   const SETTINGS_KEY = "rwfSettings";
 
   const refs = {
-    wordCount: document.getElementById("wordCount"),
-    targetLang: document.getElementById("targetLang"),
-    refreshSeconds: document.getElementById("refreshSeconds"),
-    saveBtn: document.getElementById("saveBtn"),
-    runBtn: document.getElementById("runBtn"),
-    pauseBtn: document.getElementById("pauseBtn"),
-    resetBtn: document.getElementById("resetBtn"),
-    countdown: document.getElementById("countdown"),
-    status: document.getElementById("status")
+    wordCount: document.getElementById("wordCount") as HTMLInputElement,
+    targetLang: document.getElementById("targetLang") as HTMLSelectElement,
+    refreshSeconds: document.getElementById("refreshSeconds") as HTMLInputElement,
+    saveBtn: document.getElementById("saveBtn") as HTMLButtonElement,
+    runBtn: document.getElementById("runBtn") as HTMLButtonElement,
+    pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
+    resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
+    countdown: document.getElementById("countdown") as HTMLParagraphElement,
+    status: document.getElementById("status") as HTMLParagraphElement
   };
 
   let countdownTimer = null;
 
-  function log(step, data) {
+  function log(step, data?) {
     if (!DEBUG) return;
     if (typeof data === "undefined") {
       console.log(`[RWF][popup] ${step}`);
@@ -34,7 +34,7 @@
 
   const api = {
     storageSyncGet(key) {
-      if (globalThis.browser && browser.storage && browser.storage.sync) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
         return browser.storage.sync.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -46,10 +46,10 @@
       });
     },
     storageSyncSet(payload) {
-      if (globalThis.browser && browser.storage && browser.storage.sync) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
         return browser.storage.sync.set(payload).catch(() => {});
       }
-      return new Promise((resolve) => {
+      return new Promise<void>((resolve) => {
         try {
           chrome.storage.sync.set(payload, () => resolve());
         } catch (_err) {
@@ -58,7 +58,7 @@
       });
     },
     storageLocalGet(key) {
-      if (globalThis.browser && browser.storage && browser.storage.local) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
         return browser.storage.local.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -70,10 +70,10 @@
       });
     },
     storageLocalSet(payload) {
-      if (globalThis.browser && browser.storage && browser.storage.local) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
         return browser.storage.local.set(payload).catch(() => {});
       }
-      return new Promise((resolve) => {
+      return new Promise<void>((resolve) => {
         try {
           chrome.storage.local.set(payload, () => resolve());
         } catch (_err) {
@@ -82,7 +82,7 @@
       });
     },
     tabsQueryActive() {
-      if (globalThis.browser && browser.tabs) {
+      if (typeof browser !== "undefined" && browser.tabs) {
         return browser.tabs.query({ active: true, currentWindow: true }).catch(() => []);
       }
       return new Promise((resolve) => {
@@ -94,7 +94,7 @@
       });
     },
     sendMessage(tabId, message) {
-      if (globalThis.browser && browser.tabs) {
+      if (typeof browser !== "undefined" && browser.tabs) {
         return browser.tabs.sendMessage(tabId, message).catch(() => null);
       }
       return new Promise((resolve) => {
@@ -188,7 +188,7 @@
   }
 
   async function getActiveTabId() {
-    const tabs = await api.tabsQueryActive();
+    const tabs = await api.tabsQueryActive() as Array<{ id?: number }>;
     log("activeTab.tabs", tabs);
     if (!tabs.length || typeof tabs[0].id !== "number") {
       return null;

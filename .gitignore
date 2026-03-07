@@ -26,6 +26,8 @@ node_modules/
 # Build / packaging artifacts
 dist/
 build/
+chrome/src/
+firefox/src/
 web-ext-artifacts/
 *.xpi
 *.zip

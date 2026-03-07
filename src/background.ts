@@ -3,7 +3,7 @@
   const CACHE_KEY = "rwfTranslationCache";
   const MAX_CACHE_ENTRIES = 1500;
 
-  function log(step, data) {
+  function log(step, data?) {
     if (!DEBUG) return;
     if (typeof data === "undefined") {
       console.log(`[RWF][background] ${step}`);
@@ -13,12 +13,12 @@
   }
 
   function getRuntime() {
-    if (globalThis.browser && browser.runtime) return browser.runtime;
+    if (typeof browser !== "undefined" && browser.runtime) return browser.runtime;
     return chrome.runtime;
   }
 
   function getStorageLocal() {
-    if (globalThis.browser && browser.storage && browser.storage.local) {
+    if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
       return browser.storage.local;
     }
     return chrome.storage.local;
@@ -40,7 +40,7 @@
 
   function storageLocalSet(payload) {
     const area = getStorageLocal();
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       try {
         const maybePromise = area.set(payload, () => resolve());
         if (maybePromise && typeof maybePromise.then === "function") {

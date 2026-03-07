@@ -2,7 +2,7 @@
 
 This WebExtension picks `X` random words from the current page, translates them into language `Y`, and replaces every occurrence with clean inline text.
 
-Shared extension source files live in the top-level `src/` folder. The `chrome/` and `firefox/` folders contain their own `manifest.json` plus a `src` link back to the shared source.
+The repo keeps canonical runtime sources in top-level `src/`. Rspack builds those TypeScript entrypoints and static assets into generated `chrome/src/` and `firefox/src/` folders.
 
 ## Features
 
@@ -24,6 +24,32 @@ Shared extension source files live in the top-level `src/` folder. The `chrome/`
 - Per-word source language detection by writing system (Cyrillic, Hangul, Arabic, etc.) with fallback from `<html lang>` to `en`
 - Translation cache in extension local storage
 
+## Development
+
+```bash
+npm run build
+```
+
+- Bundles `src/background.ts`, `src/content.ts`, and `src/popup.ts` into both browser folders
+- Copies `src/popup.html`, `src/popup.css`, and `src/content.css` into both browser folders
+- Run this before loading or reloading the extension in a browser
+
+For active development:
+
+```bash
+npm run build:watch
+```
+
+- Rebuilds both browser folders whenever TypeScript, HTML, or CSS files under top-level `src/` change
+
+Type-check and build together with:
+
+```bash
+npm run check
+```
+
+- Runs `tsgo --noEmit` and then the Rspack build
+
 ## Current language options
 
 - Korean (`ko`) [default]
@@ -34,8 +60,9 @@ Shared extension source files live in the top-level `src/` folder. The `chrome/`
 
 1. Open `chrome://extensions`
 2. Enable `Developer mode`
-3. Click `Load unpacked`
-4. Select the `chrome/` folder
+3. Run `npm run build`
+4. Click `Load unpacked`
+5. Select the `chrome/` folder
 
 ## Load in Firefox
 
@@ -43,13 +70,14 @@ This project includes two browser-specific manifest folders:
 
 - `chrome/manifest.json` for Chrome/Chromium (MV3 service worker)
 - `firefox/manifest.json` for Firefox (MV2 fallback)
-- Shared runtime files in top-level `src/` (`background.js`, `content.js`, `content.css`, `popup.html`, `popup.js`, `popup.css`)
+- Generated runtime files under each browser folder's `src/` directory (`background.js`, `content.js`, `content.css`, `popup.html`, `popup.js`, `popup.css`)
 
 To load in Firefox:
 
 1. Open `about:debugging#/runtime/this-firefox`
-2. Click `Load Temporary Add-on...`
-3. Select `firefox/manifest.json`
+2. Run `npm run build`
+3. Click `Load Temporary Add-on...`
+4. Select `firefox/manifest.json`
 
 ## Notes
 

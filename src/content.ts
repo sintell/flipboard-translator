@@ -17,7 +17,7 @@
   let nextRunAt = null;
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
 
-  function log(step, data) {
+  function log(step, data?) {
     if (!DEBUG) return;
     if (typeof data === "undefined") {
       console.log(`[RWF][content] ${step}`);
@@ -28,7 +28,7 @@
 
   const api = {
     storageSyncGet(key) {
-      if (globalThis.browser && browser.storage && browser.storage.sync) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.sync) {
         return browser.storage.sync.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -42,7 +42,7 @@
       });
     },
     storageLocalGet(key) {
-      if (globalThis.browser && browser.storage && browser.storage.local) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.local) {
         return browser.storage.local.get(key).catch(() => ({}));
       }
       return new Promise((resolve) => {
@@ -56,21 +56,21 @@
       });
     },
     onStorageChanged(handler) {
-      if (globalThis.browser && browser.storage && browser.storage.onChanged) {
+      if (typeof browser !== "undefined" && browser.storage && browser.storage.onChanged) {
         browser.storage.onChanged.addListener(handler);
       } else if (chrome.storage && chrome.storage.onChanged) {
         chrome.storage.onChanged.addListener(handler);
       }
     },
     onMessage(handler) {
-      if (globalThis.browser && browser.runtime && browser.runtime.onMessage) {
+      if (typeof browser !== "undefined" && browser.runtime && browser.runtime.onMessage) {
         browser.runtime.onMessage.addListener(handler);
       } else if (chrome.runtime && chrome.runtime.onMessage) {
         chrome.runtime.onMessage.addListener(handler);
       }
     },
     runtimeSendMessage(message) {
-      if (globalThis.browser && browser.runtime) {
+      if (typeof browser !== "undefined" && browser.runtime) {
         return browser.runtime.sendMessage(message).catch(() => null);
       }
       return new Promise((resolve) => {
@@ -248,7 +248,7 @@
   function restorePreviousReplacements() {
     const replaced = document.querySelectorAll(".rwf-replacement");
     log("restorePreviousReplacements.start", { count: replaced.length });
-    const parentSet = new Set();
+    const parentSet = new Set<Node & ParentNode>();
     for (const el of replaced) {
       if (el.parentNode) parentSet.add(el.parentNode);
       const original = el.getAttribute("data-original") || el.textContent || "";

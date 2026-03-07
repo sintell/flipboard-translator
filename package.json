@@ -1,0 +1,18 @@
+{
+  "name": "flipboard-translator",
+  "private": true,
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "build": "rspack build",
+    "build:watch": "rspack build --watch",
+    "check": "tsgo --noEmit -p tsconfig.json && npm run build"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.6.2",
+    "@rspack/core": "^1.6.2",
+    "@types/chrome": "^0.1.14",
+    "@types/firefox-webext-browser": "^120.0.4",
+    "@typescript/native-preview": "^7.0.0-dev.20260307.1",
+    "typescript": "^5.9.2"
+  }
+}
