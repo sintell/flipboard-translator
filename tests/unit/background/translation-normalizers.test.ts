@@ -11,6 +11,12 @@ import {
 describe("translation normalizers", () => {
   it("sanitizes translation tokens", () => {
     expect(sanitizeTranslation("  hola!  ", "fallback")).toBe("hola");
+    expect(sanitizeTranslation("good morning", "fallback")).toBe(
+      "good morning",
+    );
+    expect(sanitizeTranslation("  ?one two three four!  ", "fallback")).toBe(
+      "one two three four",
+    );
     expect(sanitizeTranslation("!!!", "fallback")).toBe("fallback");
   });
 
