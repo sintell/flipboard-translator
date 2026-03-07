@@ -3,6 +3,11 @@
   "name": "Flipboard Word Translator",
   "description": "Randomly replaces page words with translated words and optional transcription.",
   "version": "1.0.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "uyiiio+addon-flipboard-translator@gmail.com"
+    }
+  },
   "permissions": [
     "storage",
     "activeTab",
@@ -12,9 +17,7 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": [
-      "src/background.js"
-    ],
+    "scripts": ["src/background.js"],
     "persistent": false
   },
   "browser_action": {
@@ -23,15 +26,9 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "src/content.js"
-      ],
-      "css": [
-        "src/content.css"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     }
   ]
