@@ -71,7 +71,7 @@ npm run release -- 1.2.0
 
 - Supported release arguments are `patch`, `minor`, `major`, or an explicit `x.y.z` version.
 - The script requires a clean git working tree before it runs.
-- The pushed tag triggers the GitHub release workflow, which uploads one zip for `chrome/` and one zip for `firefox/`.
+- The pushed tag triggers the GitHub release workflow, which uploads a `.zip` for `chrome/` and an `.xpi` for `firefox/`.
 
 ## Current language options
 

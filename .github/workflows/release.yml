@@ -67,8 +67,8 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           mkdir -p dist
-          zip -r "dist/flipboard-translator-chrome-${GITHUB_REF_NAME}.zip" chrome
-          zip -r "dist/flipboard-translator-firefox-${GITHUB_REF_NAME}.zip" firefox
+          cd chrome && zip -r "../dist/flipboard-translator-chrome-${GITHUB_REF_NAME}.zip" .
+          cd ../firefox && zip -r "../dist/flipboard-translator-firefox-${GITHUB_REF_NAME}.xpi" .
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -77,4 +77,4 @@ jobs:
           generate_release_notes: true
           files: |
             dist/flipboard-translator-chrome-${{ github.ref_name }}.zip
-            dist/flipboard-translator-firefox-${{ github.ref_name }}.zip
+            dist/flipboard-translator-firefox-${{ github.ref_name }}.xpi
