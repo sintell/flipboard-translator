@@ -14,6 +14,8 @@
     runBtn: document.getElementById("runBtn") as HTMLButtonElement,
     pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
     resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
+    disableBtn: document.getElementById("disableBtn") as HTMLButtonElement,
+    siteDisableBtn: document.getElementById("siteDisableBtn") as HTMLButtonElement,
     countdown: document.getElementById("countdown") as HTMLParagraphElement,
     status: document.getElementById("status") as HTMLParagraphElement
   };
@@ -21,6 +23,7 @@
   let countdownTimer = null;
   let autosaveTimer = null;
   let autosaveRequestId = 0;
+  let activeHostname = "";
   const AUTOSAVE_DELAY_MS = 700;
 
   const api = {
@@ -134,6 +137,10 @@
     merged.refreshSeconds = clampInt(merged.refreshSeconds, 5, 86400, DEFAULT_SETTINGS.refreshSeconds);
     merged.targetLang = String(merged.targetLang || DEFAULT_SETTINGS.targetLang).toLowerCase();
     merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, DEFAULT_SETTINGS.debugLogs);
+    merged.enabled = globalThis.RWF_normalizeBoolean(merged.enabled, DEFAULT_SETTINGS.enabled);
+    merged.disabledDomains = Array.isArray(merged.disabledDomains)
+      ? Array.from(new Set(merged.disabledDomains.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)))
+      : [];
     if (!["ko", "es", "ka"].includes(merged.targetLang)) {
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
     }
@@ -203,11 +210,40 @@
 
   function formToSettings() {
     return normalizeSettings({
+      enabled: currentSettings.enabled,
+      disabledDomains: currentSettings.disabledDomains,
       wordCount: refs.wordCount.value,
       targetLang: refs.targetLang.value,
       refreshSeconds: refs.refreshSeconds.value,
       debugLogs: refs.debugLogs.checked
     });
+  }
+
+  function isHostnameDisabled(settings, hostname = activeHostname) {
+    if (!hostname) return false;
+    return Array.isArray(settings.disabledDomains) && settings.disabledDomains.includes(hostname);
+  }
+
+  function getHostnameFromUrl(url) {
+    try {
+      const parsed = new URL(String(url || ""));
+      return String(parsed.hostname || "").trim().toLowerCase();
+    } catch (_err) {
+      return "";
+    }
+  }
+
+  function updateToggleButtons() {
+    refs.disableBtn.textContent = currentSettings.enabled ? "Disable" : "Enable";
+    if (activeHostname) {
+      refs.siteDisableBtn.disabled = false;
+      refs.siteDisableBtn.textContent = isHostnameDisabled(currentSettings)
+        ? "Enable on this site"
+        : "Disable on this site";
+      return;
+    }
+    refs.siteDisableBtn.disabled = true;
+    refs.siteDisableBtn.textContent = "Site unavailable";
   }
 
   function applySettingsToForm(settings) {
@@ -226,14 +262,19 @@
     }
   }
 
-  async function saveSettings() {
-    const settings = formToSettings();
+  async function persistSettings(nextSettings) {
+    const settings = normalizeSettings(nextSettings);
     const record = normalizeSettingsRecord({ value: settings, updatedAt: Date.now() });
     currentSettings = settings;
     log("saveSettings", record);
     const saved = await saveSettingsRecord(record);
     applySettingsToForm(settings);
+    updateToggleButtons();
     return { settings, saved };
+  }
+
+  async function saveSettings() {
+    return persistSettings(formToSettings());
   }
 
   function clearAutosaveTimer() {
@@ -272,53 +313,72 @@
   }
 
   async function runOnActiveTab() {
-    const tabId = await getActiveTabId();
-    if (tabId === null) {
+    const tab = await getActiveTabInfo();
+    if (!tab) {
       setStatus("No active tab found.");
       return false;
     }
-    await api.sendMessage(tabId, { type: "RWF_RUN_NOW" });
-    log("runOnActiveTab.sent", { tabId });
+    await api.sendMessage(tab.id, { type: "RWF_RUN_NOW" });
+    log("runOnActiveTab.sent", { tabId: tab.id });
     return true;
   }
 
   async function resetOnActiveTab() {
-    const tabId = await getActiveTabId();
-    if (tabId === null) {
+    const tab = await getActiveTabInfo();
+    if (!tab) {
       setStatus("No active tab found.");
       return false;
     }
-    await api.sendMessage(tabId, { type: "RWF_RESET_TRANSLATIONS" });
-    log("resetOnActiveTab.sent", { tabId });
+    await api.sendMessage(tab.id, { type: "RWF_RESET_TRANSLATIONS" });
+    log("resetOnActiveTab.sent", { tabId: tab.id });
     return true;
   }
 
-  async function getActiveTabId() {
-    const tabs = await api.tabsQueryActive() as Array<{ id?: number }>;
+  async function getActiveTabInfo() {
+    const tabs = await api.tabsQueryActive() as Array<{ id?: number; url?: string }>;
     log("activeTab.tabs", tabs);
     if (!tabs.length || typeof tabs[0].id !== "number") {
       return null;
     }
-    return tabs[0].id;
+    const hostname = getHostnameFromUrl(tabs[0].url);
+    activeHostname = hostname;
+    updateToggleButtons();
+    return {
+      id: tabs[0].id,
+      hostname
+    };
   }
 
   async function getStatusFromActiveTab() {
-    const tabId = await getActiveTabId();
-    if (tabId === null) return null;
-    const response = await api.sendMessage(tabId, { type: "RWF_GET_STATUS" });
+    const tab = await getActiveTabInfo();
+    if (!tab) return null;
+    const response = await api.sendMessage(tab.id, { type: "RWF_GET_STATUS" });
     log("status.response", response);
     if (!response || !response.ok || !response.status) return null;
-    return { tabId, status: response.status };
+    activeHostname = String(response.status.hostname || tab.hostname || "").trim().toLowerCase();
+    updateToggleButtons();
+    return { tabId: tab.id, status: response.status };
   }
 
   function renderCountdown(status) {
     if (!status) {
       refs.countdown.textContent = "Next change: unavailable on this tab";
       refs.pauseBtn.textContent = "Pause";
+      updateToggleButtons();
       return;
     }
 
     refs.pauseBtn.textContent = status.paused ? "Resume" : "Pause";
+    activeHostname = String(status.hostname || activeHostname || "").trim().toLowerCase();
+    updateToggleButtons();
+    if (!status.enabled) {
+      refs.countdown.textContent = "Automatic changes disabled everywhere";
+      return;
+    }
+    if (status.siteDisabled) {
+      refs.countdown.textContent = "Automatic changes disabled on this site";
+      return;
+    }
     if (status.paused) {
       refs.countdown.textContent = "Auto change is paused";
       return;
@@ -353,6 +413,10 @@
       setStatus("Could not read tab status.");
       return false;
     }
+    if (!snapshot.status.enabled || snapshot.status.siteDisabled) {
+      setStatus("Automatic changes are disabled.");
+      return false;
+    }
 
     const nextPaused = !snapshot.status.paused;
     const response = await api.sendMessage(snapshot.tabId, {
@@ -364,12 +428,55 @@
     return Boolean(response && response.ok);
   }
 
+  async function toggleGlobalEnabled() {
+    const baseSettings = formToSettings();
+    const nextEnabled = !currentSettings.enabled;
+    const result = await persistSettings(Object.assign({}, baseSettings, { enabled: nextEnabled }));
+    if (!result.saved) {
+      setStatus("Settings save failed.");
+      return false;
+    }
+    if (!nextEnabled) {
+      await resetOnActiveTab();
+    }
+    setStatus(nextEnabled ? "Automatic changes enabled everywhere." : "Automatic changes disabled everywhere.");
+    await refreshCountdown();
+    return true;
+  }
+
+  async function toggleSiteDisabled() {
+    const tab = await getActiveTabInfo();
+    if (!tab || !tab.hostname) {
+      setStatus("Site controls unavailable on this tab.");
+      return false;
+    }
+    activeHostname = tab.hostname;
+    const baseSettings = formToSettings();
+    const disabledDomains = Array.isArray(baseSettings.disabledDomains) ? baseSettings.disabledDomains.slice() : [];
+    const nextSiteDisabled = !disabledDomains.includes(tab.hostname);
+    const nextDisabledDomains = nextSiteDisabled
+      ? disabledDomains.concat(tab.hostname)
+      : disabledDomains.filter((value) => value !== tab.hostname);
+    const result = await persistSettings(Object.assign({}, baseSettings, { disabledDomains: nextDisabledDomains }));
+    if (!result.saved) {
+      setStatus("Settings save failed.");
+      return false;
+    }
+    if (nextSiteDisabled) {
+      await resetOnActiveTab();
+    }
+    setStatus(nextSiteDisabled ? "Automatic changes disabled on this site." : "Automatic changes enabled on this site.");
+    await refreshCountdown();
+    return true;
+  }
+
   async function init() {
     const raw = await loadStoredSettings();
     const settings = normalizeSettings(raw);
     currentSettings = settings;
     log("init.settings", { raw, normalized: settings });
     applySettingsToForm(settings);
+    updateToggleButtons();
 
     [refs.wordCount, refs.targetLang, refs.refreshSeconds, refs.debugLogs].forEach((ref) => {
       ref.addEventListener("input", scheduleAutosave);
@@ -388,6 +495,16 @@
       if (ok) {
         setStatus(refs.pauseBtn.textContent === "Resume" ? "Auto change paused." : "Auto change resumed.");
       }
+    });
+
+    refs.disableBtn.addEventListener("click", async () => {
+      await flushAutosave();
+      await toggleGlobalEnabled();
+    });
+
+    refs.siteDisableBtn.addEventListener("click", async () => {
+      await flushAutosave();
+      await toggleSiteDisabled();
     });
 
     refs.resetBtn.addEventListener("click", async () => {

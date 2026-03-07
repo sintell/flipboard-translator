@@ -88,6 +88,10 @@
   function normalizeSettings(input) {
     const merged = Object.assign({}, globalThis.RWF_DEFAULT_SETTINGS, input || {});
     merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, globalThis.RWF_DEFAULT_SETTINGS.debugLogs);
+    merged.enabled = globalThis.RWF_normalizeBoolean(merged.enabled, globalThis.RWF_DEFAULT_SETTINGS.enabled);
+    merged.disabledDomains = Array.isArray(merged.disabledDomains)
+      ? Array.from(new Set(merged.disabledDomains.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)))
+      : [];
     return merged;
   }
 

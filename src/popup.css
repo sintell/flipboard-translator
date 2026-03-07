@@ -104,6 +104,11 @@ button:focus {
   margin-top: 12px;
 }
 
+.actions-secondary {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 8px;
+}
+
 button {
   cursor: pointer;
   padding: 6px 8px;

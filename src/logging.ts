@@ -3,7 +3,9 @@
     wordCount: 8,
     targetLang: "ko",
     refreshSeconds: 60,
-    debugLogs: false
+    debugLogs: false,
+    enabled: true,
+    disabledDomains: []
   };
 
   function normalizeBoolean(value, fallback) {

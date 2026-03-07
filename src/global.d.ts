@@ -6,6 +6,8 @@ declare global {
     targetLang: string;
     refreshSeconds: number;
     debugLogs: boolean;
+    enabled: boolean;
+    disabledDomains: string[];
   };
   var RWF_normalizeBoolean: (value: unknown, fallback: boolean) => boolean;
   var RWF_createLogger: (

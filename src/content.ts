@@ -10,8 +10,12 @@
   let isRunning = false;
   let isPaused = false;
   let nextRunAt = null;
+  let lastImmediateAutoRunAt = 0;
+  let immediateAutoRunTimer = null;
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
   const log = globalThis.RWF_createLogger("content", () => currentSettings.debugLogs);
+  const IMMEDIATE_AUTO_RUN_DEDUPE_MS = 1500;
+  const INITIAL_AUTO_RUN_DELAY_MS = 1200;
 
   const api = {
     storageSyncGet(key) {
@@ -122,6 +126,10 @@
     merged.refreshSeconds = clampInt(merged.refreshSeconds, 5, 86400, DEFAULT_SETTINGS.refreshSeconds);
     merged.targetLang = String(merged.targetLang || DEFAULT_SETTINGS.targetLang).toLowerCase();
     merged.debugLogs = globalThis.RWF_normalizeBoolean(merged.debugLogs, DEFAULT_SETTINGS.debugLogs);
+    merged.enabled = globalThis.RWF_normalizeBoolean(merged.enabled, DEFAULT_SETTINGS.enabled);
+    merged.disabledDomains = Array.isArray(merged.disabledDomains)
+      ? Array.from(new Set(merged.disabledDomains.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)))
+      : [];
     if (!ALLOWED_TARGET_LANGS.has(merged.targetLang)) {
       merged.targetLang = DEFAULT_SETTINGS.targetLang;
     }
@@ -416,17 +424,22 @@
     });
   }
 
-  async function runOnce() {
+  async function runOnce(forceManual = false) {
     if (isRunning) return;
     if (!document.body) return;
     isRunning = true;
     const runId = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    log("run.start", { runId, url: location.href });
+    log("run.start", { runId, url: location.href, forceManual });
 
     try {
       restorePreviousReplacements();
       const settings = await loadSettings();
+      currentSettings = settings;
       log("settings.loaded", settings);
+      if (!forceManual && !isAutoModeEnabled(settings)) {
+        log("run.skipped.disabled", { runId, reason: getDisabledReason(settings), hostname: getCurrentHostname() });
+        return;
+      }
       const textNodes = collectTextNodes();
       const chosenWords = pickRandomWords(textNodes, settings.wordCount);
       if (chosenWords.length === 0) {
@@ -452,6 +465,25 @@
     return record.value;
   }
 
+  function getCurrentHostname() {
+    return String(location.hostname || "").trim().toLowerCase();
+  }
+
+  function isSiteDisabled(settings, hostname = getCurrentHostname()) {
+    if (!hostname) return false;
+    return Array.isArray(settings.disabledDomains) && settings.disabledDomains.includes(hostname);
+  }
+
+  function isAutoModeEnabled(settings) {
+    return Boolean(settings.enabled) && !isSiteDisabled(settings);
+  }
+
+  function getDisabledReason(settings) {
+    if (!settings.enabled) return "global";
+    if (isSiteDisabled(settings)) return "site";
+    return null;
+  }
+
   function clearRunTimer() {
     if (runTimer !== null) {
       clearInterval(runTimer);
@@ -461,7 +493,7 @@
   }
 
   function scheduleNextRunAfter(seconds) {
-    if (isPaused) {
+    if (isPaused || !isAutoModeEnabled(currentSettings)) {
       nextRunAt = null;
       return;
     }
@@ -471,6 +503,11 @@
   function getStatusSnapshot() {
     const delta = nextRunAt === null ? null : Math.max(0, Math.ceil((nextRunAt - Date.now()) / 1000));
     return {
+      enabled: Boolean(currentSettings.enabled),
+      siteDisabled: isSiteDisabled(currentSettings),
+      hostname: getCurrentHostname(),
+      autoEnabled: isAutoModeEnabled(currentSettings),
+      disabledReason: getDisabledReason(currentSettings),
       paused: isPaused,
       nextRunInSeconds: delta,
       refreshSeconds: currentSettings.refreshSeconds,
@@ -486,6 +523,11 @@
       log("pause.enabled");
       return;
     }
+    if (!isAutoModeEnabled(currentSettings)) {
+      nextRunAt = null;
+      log("pause.disabled.blocked", { reason: getDisabledReason(currentSettings) });
+      return;
+    }
     scheduleNextRunAfter(currentSettings.refreshSeconds);
     log("pause.disabled", { nextRunInSeconds: getStatusSnapshot().nextRunInSeconds });
   }
@@ -494,6 +536,11 @@
     clearRunTimer();
     const settings = await loadSettings();
     currentSettings = settings;
+    if (!isAutoModeEnabled(settings)) {
+      restorePreviousReplacements();
+      log("scheduler.disabled", { reason: getDisabledReason(settings), hostname: getCurrentHostname() });
+      return;
+    }
     log("scheduler.set", { refreshSeconds: settings.refreshSeconds });
     scheduleNextRunAfter(settings.refreshSeconds);
     runTimer = setInterval(() => {
@@ -503,12 +550,40 @@
     }, settings.refreshSeconds * 1000);
   }
 
+  async function triggerImmediateAutoRun(reason) {
+    if (!isAutoModeEnabled(currentSettings)) {
+      return;
+    }
+    const now = Date.now();
+    if (now - lastImmediateAutoRunAt < IMMEDIATE_AUTO_RUN_DEDUPE_MS) {
+      log("run.immediate.skipped", { reason, sinceLastMs: now - lastImmediateAutoRunAt });
+      return;
+    }
+    lastImmediateAutoRunAt = now;
+    log("run.immediate", { reason });
+    await runOnce();
+    scheduleNextRunAfter(currentSettings.refreshSeconds);
+  }
+
+  function scheduleImmediateAutoRun(reason, delayMs = INITIAL_AUTO_RUN_DELAY_MS) {
+    if (immediateAutoRunTimer !== null) {
+      clearTimeout(immediateAutoRunTimer);
+    }
+    immediateAutoRunTimer = setTimeout(() => {
+      immediateAutoRunTimer = null;
+      triggerImmediateAutoRun(reason);
+    }, Math.max(0, delayMs));
+  }
+
   function initListeners() {
     api.onMessage((message, _sender, sendResponse) => {
       log("message.received", message);
       if (message && message.type === "RWF_RUN_NOW") {
-        runOnce();
-        scheduleNextRunAfter(currentSettings.refreshSeconds);
+        runOnce(true).then(() => {
+          if (isAutoModeEnabled(currentSettings)) {
+            scheduleNextRunAfter(currentSettings.refreshSeconds);
+          }
+        });
       }
       if (message && message.type === "RWF_RESET_TRANSLATIONS") {
         restorePreviousReplacements();
@@ -537,12 +612,20 @@
         applySchedulerFromSettings();
       }
     });
+
+    globalThis.addEventListener("load", () => {
+      scheduleImmediateAutoRun("window.load");
+    });
+
+    globalThis.addEventListener("pageshow", () => {
+      scheduleImmediateAutoRun("window.pageshow");
+    });
   }
 
   async function init() {
     initListeners();
     await applySchedulerFromSettings();
-    runOnce();
+    scheduleImmediateAutoRun("init");
   }
 
   init();
