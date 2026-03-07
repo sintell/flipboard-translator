@@ -1,0 +1,80 @@
+name: Release Extensions
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate manifest versions
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          node <<'EOF'
+          const fs = require("fs");
+
+          function readJson(filePath) {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          }
+
+          const chromeManifest = readJson("chrome/manifest.json");
+          const firefoxManifest = readJson("firefox/manifest.json");
+          const chromeVersion = String(chromeManifest.version || "");
+          const firefoxVersion = String(firefoxManifest.version || "");
+
+          if (!chromeVersion || !firefoxVersion) {
+            throw new Error("Both manifests must define a version.");
+          }
+
+          if (chromeVersion !== firefoxVersion) {
+            throw new Error(`Manifest versions do not match: chrome=${chromeVersion}, firefox=${firefoxVersion}`);
+          }
+
+          const tagVersion = String(process.env.GITHUB_REF_NAME || "").replace(/^v/, "");
+
+          if (tagVersion !== chromeVersion) {
+            throw new Error(`Tag version ${tagVersion} does not match manifest version ${chromeVersion}`);
+          }
+
+          console.log(`Validated version ${chromeVersion}`);
+          EOF
+
+      - name: Build extension bundles
+        run: npm run build
+
+      - name: Package release artifacts
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+          zip -r "dist/flipboard-translator-chrome-${GITHUB_REF_NAME}.zip" chrome
+          zip -r "dist/flipboard-translator-firefox-${GITHUB_REF_NAME}.zip" firefox
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/flipboard-translator-chrome-${{ github.ref_name }}.zip
+            dist/flipboard-translator-firefox-${{ github.ref_name }}.zip

@@ -50,6 +50,22 @@ npm run check
 
 - Runs `tsgo --noEmit` and then the Rspack build
 
+## Releasing
+
+GitHub releases are created by the workflow in `.github/workflows/release.yml`.
+
+- The workflow can run either from a pushed tag like `v1.0.0` or manually from the Actions tab.
+- Before tagging, make sure `chrome/manifest.json` and `firefox/manifest.json` have the same `version`, and that it matches the tag without the `v` prefix.
+
+Release with a tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+- This creates a GitHub release and uploads two artifacts: one zip for `chrome/` and one zip for `firefox/`.
+
 ## Current language options
 
 - Korean (`ko`) [default]
