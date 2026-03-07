@@ -13,7 +13,11 @@ export function renderCountdown(status: ContentStatus | null): void {
   }
 
   refs.pauseBtn.textContent = status.paused ? "Resume" : "Pause";
-  settingsState.activeHostname = String(status.hostname || settingsState.activeHostname || "").trim().toLowerCase();
+  settingsState.activeHostname = String(
+    status.hostname || settingsState.activeHostname || "",
+  )
+    .trim()
+    .toLowerCase();
   updateToggleButtons();
 
   if (!status.enabled) {

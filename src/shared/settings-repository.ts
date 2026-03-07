@@ -14,8 +14,12 @@ export async function loadStoredSettingsRecord(): Promise<StoredSettingsRecord> 
     storageGet("local", SETTINGS_KEY),
   ]);
 
-  const syncRecord = normalizeSettingsRecord(syncResult ? syncResult[SETTINGS_KEY] : undefined);
-  const localRecord = normalizeSettingsRecord(localResult ? localResult[SETTINGS_KEY] : undefined);
+  const syncRecord = normalizeSettingsRecord(
+    syncResult ? syncResult[SETTINGS_KEY] : undefined,
+  );
+  const localRecord = normalizeSettingsRecord(
+    localResult ? localResult[SETTINGS_KEY] : undefined,
+  );
   const bestRecord = pickBestSettingsRecord(syncRecord, localRecord);
   const storedBestRecord = toStoredSettingsRecord(bestRecord);
   const storedSyncRecord = toStoredSettingsRecord(syncRecord);
@@ -31,7 +35,9 @@ export async function loadStoredSettingsRecord(): Promise<StoredSettingsRecord> 
   return storedBestRecord;
 }
 
-export async function saveSettingsRecord(record: StoredSettingsRecord): Promise<boolean> {
+export async function saveSettingsRecord(
+  record: StoredSettingsRecord,
+): Promise<boolean> {
   const [syncOk, localOk] = await Promise.all([
     storageSet("sync", { [SETTINGS_KEY]: record }),
     storageSet("local", { [SETTINGS_KEY]: record }),

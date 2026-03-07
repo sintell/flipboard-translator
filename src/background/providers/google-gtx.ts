@@ -1,4 +1,7 @@
-import { sanitizeTranscription, sanitizeTranslation } from "../translation-normalizers";
+import {
+  sanitizeTranscription,
+  sanitizeTranslation,
+} from "../translation-normalizers";
 
 export async function fetchGoogleGtx(
   log: (step: string, data?: unknown) => void,
@@ -16,16 +19,27 @@ export async function fetchGoogleGtx(
 
   try {
     log("fetch.gtx.start", { word, sourceLang, targetLang });
-    const response = await fetch(`https://translate.googleapis.com/translate_a/single?${params.toString()}`);
+    const response = await fetch(
+      `https://translate.googleapis.com/translate_a/single?${params.toString()}`,
+    );
     if (!response.ok) {
       log("fetch.gtx.httpError", { word, status: response.status });
-      return { ok: false, translated: word, transcription: "", cacheable: false, reason: `http_${response.status}` };
+      return {
+        ok: false,
+        translated: word,
+        transcription: "",
+        cacheable: false,
+        reason: `http_${response.status}`,
+      };
     }
 
     const payload = await response.json();
-    const firstChunk = Array.isArray(payload) && Array.isArray(payload[0]) ? payload[0] : [];
+    const firstChunk =
+      Array.isArray(payload) && Array.isArray(payload[0]) ? payload[0] : [];
     const combined = firstChunk
-      .map((row) => (Array.isArray(row) && typeof row[0] === "string" ? row[0] : ""))
+      .map((row) =>
+        Array.isArray(row) && typeof row[0] === "string" ? row[0] : "",
+      )
       .join(" ")
       .trim();
     const translated = sanitizeTranslation(combined, word);
@@ -38,10 +52,28 @@ export async function fetchGoogleGtx(
       }
     }
 
-    log("fetch.gtx.success", { word, sourceLang, targetLang, translated, transcription });
-    return { ok: true, translated, transcription, cacheable: true, reason: "gtx" };
+    log("fetch.gtx.success", {
+      word,
+      sourceLang,
+      targetLang,
+      translated,
+      transcription,
+    });
+    return {
+      ok: true,
+      translated,
+      transcription,
+      cacheable: true,
+      reason: "gtx",
+    };
   } catch (_err) {
     log("fetch.gtx.error", { word, sourceLang, targetLang });
-    return { ok: false, translated: word, transcription: "", cacheable: false, reason: "network_error" };
+    return {
+      ok: false,
+      translated: word,
+      transcription: "",
+      cacheable: false,
+      reason: "network_error",
+    };
   }
 }

@@ -40,7 +40,9 @@ export function pickRandomWords(textNodes: Text[], count: number): string[] {
     uniqueEligible: pool.length,
     selectedCount: selected.length,
     selected,
-    topFrequency: Array.from(frequency.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20),
+    topFrequency: Array.from(frequency.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20),
   });
   return selected;
 }

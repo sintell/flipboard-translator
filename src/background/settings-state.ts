@@ -1,6 +1,9 @@
 import { SETTINGS_KEY } from "../shared/constants";
 import { createLogger } from "../shared/logging";
-import { loadStoredSettings, loadStoredSettingsRecord } from "../shared/settings-repository";
+import {
+  loadStoredSettings,
+  loadStoredSettingsRecord,
+} from "../shared/settings-repository";
 import { normalizeSettingsRecord } from "../shared/settings";
 
 export function createBackgroundSettingsState() {
@@ -18,8 +21,13 @@ export function createBackgroundSettingsState() {
   }
 
   function handleStorageChange(changes: any, areaName: string): void {
-    if ((areaName === "sync" || areaName === "local") && changes && changes[SETTINGS_KEY]) {
-      debugLogsEnabled = normalizeSettingsRecord(changes[SETTINGS_KEY].newValue).value.debugLogs;
+    if (
+      (areaName === "sync" || areaName === "local") &&
+      changes &&
+      changes[SETTINGS_KEY]
+    ) {
+      debugLogsEnabled = normalizeSettingsRecord(changes[SETTINGS_KEY].newValue)
+        .value.debugLogs;
     }
   }
 

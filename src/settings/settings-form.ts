@@ -21,10 +21,15 @@ export function applySettingsToForm(settings: any): void {
 }
 
 export function updateToggleButtons(): void {
-  refs.disableBtn.textContent = settingsState.currentSettings.enabled ? "Disable" : "Enable";
+  refs.disableBtn.textContent = settingsState.currentSettings.enabled
+    ? "Disable"
+    : "Enable";
   if (settingsState.activeHostname) {
     refs.siteDisableBtn.disabled = false;
-    refs.siteDisableBtn.textContent = isSiteDisabled(settingsState.currentSettings, settingsState.activeHostname)
+    refs.siteDisableBtn.textContent = isSiteDisabled(
+      settingsState.currentSettings,
+      settingsState.activeHostname,
+    )
       ? "Enable on this site"
       : "Disable on this site";
     return;

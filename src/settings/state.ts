@@ -10,4 +10,7 @@ export const settingsState = {
 };
 
 export const AUTOSAVE_DELAY_MS = 700;
-export const log = createLogger("popup", () => settingsState.currentSettings.debugLogs);
+export const log = createLogger(
+  "popup",
+  () => settingsState.currentSettings.debugLogs,
+);

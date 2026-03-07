@@ -1,11 +1,21 @@
 import { normalizeSettings, normalizeSettingsRecord } from "../shared/settings";
-import { loadStoredSettingsRecord, saveSettingsRecord } from "../shared/settings-repository";
-import { applySettingsToForm, formToSettings, updateToggleButtons } from "./settings-form";
+import {
+  loadStoredSettingsRecord,
+  saveSettingsRecord,
+} from "../shared/settings-repository";
+import {
+  applySettingsToForm,
+  formToSettings,
+  updateToggleButtons,
+} from "./settings-form";
 import { log, settingsState } from "./state";
 
 export async function persistSettings(nextSettings: unknown) {
   const settings = normalizeSettings(nextSettings);
-  const record = normalizeSettingsRecord({ value: settings, updatedAt: Date.now() });
+  const record = normalizeSettingsRecord({
+    value: settings,
+    updatedAt: Date.now(),
+  });
   settingsState.currentSettings = settings;
   log("saveSettings", record);
   const saved = await saveSettingsRecord({

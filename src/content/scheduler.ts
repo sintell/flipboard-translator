@@ -1,9 +1,20 @@
-import { IMMEDIATE_AUTO_RUN_DEDUPE_MS, INITIAL_AUTO_RUN_DELAY_MS } from "../shared/constants";
+import {
+  IMMEDIATE_AUTO_RUN_DEDUPE_MS,
+  INITIAL_AUTO_RUN_DELAY_MS,
+} from "../shared/constants";
 import type { ContentStatus } from "../shared/messages";
 import { getBaseSourceLang } from "./source-language";
 import { collectTextNodes } from "./dom-scan";
-import { replaceWordsOnPage, restorePreviousReplacements } from "./replacements";
-import { loadSettings, getContentDisabledReason, getCurrentHostname, isContentAutoModeEnabled } from "./settings";
+import {
+  replaceWordsOnPage,
+  restorePreviousReplacements,
+} from "./replacements";
+import {
+  loadSettings,
+  getContentDisabledReason,
+  getCurrentHostname,
+  isContentAutoModeEnabled,
+} from "./settings";
 import { contentState, log } from "./state";
 import { translateWords } from "./translation-client";
 import { pickRandomWords } from "./word-selection";
@@ -21,7 +32,11 @@ export async function runOnce(forceManual = false): Promise<void> {
     log("settings.loaded", settings);
 
     if (!forceManual && !isContentAutoModeEnabled(settings)) {
-      log("run.skipped.disabled", { runId, reason: getContentDisabledReason(settings), hostname: getCurrentHostname() });
+      log("run.skipped.disabled", {
+        runId,
+        reason: getContentDisabledReason(settings),
+        hostname: getCurrentHostname(),
+      });
       return;
     }
 
@@ -33,10 +48,14 @@ export async function runOnce(forceManual = false): Promise<void> {
 
     const sourceLang = getBaseSourceLang();
     log("sourceLang.detected", { sourceLang });
-    replaceWordsOnPage(await translateWords(chosenWords, sourceLang, settings.targetLang));
+    replaceWordsOnPage(
+      await translateWords(chosenWords, sourceLang, settings.targetLang),
+    );
     log("run.complete", { runId });
   } catch (err: any) {
-    log("run.error", { message: err && err.message ? err.message : String(err) });
+    log("run.error", {
+      message: err && err.message ? err.message : String(err),
+    });
   } finally {
     contentState.isRunning = false;
   }
@@ -51,18 +70,32 @@ export function clearRunTimer(): void {
 }
 
 export function scheduleNextRunAfter(seconds: number): void {
-  if (contentState.isPaused || !isContentAutoModeEnabled(contentState.currentSettings)) {
+  if (
+    contentState.isPaused ||
+    !isContentAutoModeEnabled(contentState.currentSettings)
+  ) {
     contentState.nextRunAt = null;
     return;
   }
-  contentState.nextRunAt = Date.now() + Math.max(1, Number(seconds || contentState.currentSettings.refreshSeconds || 1)) * 1000;
+  contentState.nextRunAt =
+    Date.now() +
+    Math.max(
+      1,
+      Number(seconds || contentState.currentSettings.refreshSeconds || 1),
+    ) *
+      1000;
 }
 
 export function getStatusSnapshot(): ContentStatus {
-  const delta = contentState.nextRunAt === null ? null : Math.max(0, Math.ceil((contentState.nextRunAt - Date.now()) / 1000));
+  const delta =
+    contentState.nextRunAt === null
+      ? null
+      : Math.max(0, Math.ceil((contentState.nextRunAt - Date.now()) / 1000));
   return {
     enabled: Boolean(contentState.currentSettings.enabled),
-    siteDisabled: Boolean(getContentDisabledReason(contentState.currentSettings) === "site"),
+    siteDisabled: Boolean(
+      getContentDisabledReason(contentState.currentSettings) === "site",
+    ),
     hostname: getCurrentHostname(),
     autoEnabled: isContentAutoModeEnabled(contentState.currentSettings),
     disabledReason: getContentDisabledReason(contentState.currentSettings),
@@ -83,11 +116,15 @@ export function setPaused(nextPaused: boolean): void {
   }
   if (!isContentAutoModeEnabled(contentState.currentSettings)) {
     contentState.nextRunAt = null;
-    log("pause.disabled.blocked", { reason: getContentDisabledReason(contentState.currentSettings) });
+    log("pause.disabled.blocked", {
+      reason: getContentDisabledReason(contentState.currentSettings),
+    });
     return;
   }
   scheduleNextRunAfter(contentState.currentSettings.refreshSeconds);
-  log("pause.disabled", { nextRunInSeconds: getStatusSnapshot().nextRunInSeconds });
+  log("pause.disabled", {
+    nextRunInSeconds: getStatusSnapshot().nextRunInSeconds,
+  });
 }
 
 export async function applySchedulerFromSettings(): Promise<void> {
@@ -96,7 +133,10 @@ export async function applySchedulerFromSettings(): Promise<void> {
   contentState.currentSettings = settings;
   if (!isContentAutoModeEnabled(settings)) {
     restorePreviousReplacements();
-    log("scheduler.disabled", { reason: getContentDisabledReason(settings), hostname: getCurrentHostname() });
+    log("scheduler.disabled", {
+      reason: getContentDisabledReason(settings),
+      hostname: getCurrentHostname(),
+    });
     return;
   }
 
@@ -112,8 +152,14 @@ export async function applySchedulerFromSettings(): Promise<void> {
 export async function triggerImmediateAutoRun(reason: string): Promise<void> {
   if (!isContentAutoModeEnabled(contentState.currentSettings)) return;
   const now = Date.now();
-  if (now - contentState.lastImmediateAutoRunAt < IMMEDIATE_AUTO_RUN_DEDUPE_MS) {
-    log("run.immediate.skipped", { reason, sinceLastMs: now - contentState.lastImmediateAutoRunAt });
+  if (
+    now - contentState.lastImmediateAutoRunAt <
+    IMMEDIATE_AUTO_RUN_DEDUPE_MS
+  ) {
+    log("run.immediate.skipped", {
+      reason,
+      sinceLastMs: now - contentState.lastImmediateAutoRunAt,
+    });
     return;
   }
 
@@ -123,13 +169,19 @@ export async function triggerImmediateAutoRun(reason: string): Promise<void> {
   scheduleNextRunAfter(contentState.currentSettings.refreshSeconds);
 }
 
-export function scheduleImmediateAutoRun(reason: string, delayMs = INITIAL_AUTO_RUN_DELAY_MS): void {
+export function scheduleImmediateAutoRun(
+  reason: string,
+  delayMs = INITIAL_AUTO_RUN_DELAY_MS,
+): void {
   if (contentState.immediateAutoRunTimer !== null) {
     clearTimeout(contentState.immediateAutoRunTimer);
   }
 
-  contentState.immediateAutoRunTimer = globalThis.setTimeout(() => {
-    contentState.immediateAutoRunTimer = null;
-    triggerImmediateAutoRun(reason);
-  }, Math.max(0, delayMs));
+  contentState.immediateAutoRunTimer = globalThis.setTimeout(
+    () => {
+      contentState.immediateAutoRunTimer = null;
+      triggerImmediateAutoRun(reason);
+    },
+    Math.max(0, delayMs),
+  );
 }

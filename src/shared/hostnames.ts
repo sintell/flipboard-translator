@@ -1,5 +1,7 @@
 export function normalizeHostname(hostname: unknown): string {
-  return String(hostname || "").trim().toLowerCase();
+  return String(hostname || "")
+    .trim()
+    .toLowerCase();
 }
 
 export function getHostnameFromUrl(url: unknown): string {

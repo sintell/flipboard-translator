@@ -5,7 +5,10 @@ export function getBaseSourceLang(): string {
   return "en";
 }
 
-export function detectSourceLangForWord(word: string, fallbackLang: string): string {
+export function detectSourceLangForWord(
+  word: string,
+  fallbackLang: string,
+): string {
   if (!word) return fallbackLang;
   if (/\p{Script=Cyrillic}/u.test(word)) return "ru";
   if (/\p{Script=Hangul}/u.test(word)) return "ko";

@@ -1,6 +1,9 @@
 import { addStorageChangedListener } from "../shared/browser-api";
 import { SETTINGS_KEY } from "../shared/constants";
-import { applySchedulerFromSettings, scheduleImmediateAutoRun } from "./scheduler";
+import {
+  applySchedulerFromSettings,
+  scheduleImmediateAutoRun,
+} from "./scheduler";
 import { log } from "./state";
 
 export function initContentListeners(): void {

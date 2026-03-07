@@ -33,15 +33,25 @@ export async function resetOnActiveTab(): Promise<boolean> {
   return true;
 }
 
-export async function getStatusFromActiveTab(): Promise<{ tabId: number; status: ContentStatus } | null> {
+export async function getStatusFromActiveTab(): Promise<{
+  tabId: number;
+  status: ContentStatus;
+} | null> {
   const tab = await getActiveTabInfo();
   if (!tab) return null;
 
-  const response = await sendTabMessage<{ ok?: boolean; status?: ContentStatus }>(tab.id, { type: MESSAGE_GET_STATUS });
+  const response = await sendTabMessage<{
+    ok?: boolean;
+    status?: ContentStatus;
+  }>(tab.id, { type: MESSAGE_GET_STATUS });
   log("status.response", response);
   if (!response || !response.ok || !response.status) return null;
 
-  settingsState.activeHostname = String(response.status.hostname || tab.hostname || "").trim().toLowerCase();
+  settingsState.activeHostname = String(
+    response.status.hostname || tab.hostname || "",
+  )
+    .trim()
+    .toLowerCase();
   updateToggleButtons();
   return { tabId: tab.id, status: response.status };
 }

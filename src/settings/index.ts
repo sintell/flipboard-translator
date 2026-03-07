@@ -1,6 +1,10 @@
 import { flushAutosave, scheduleAutosave } from "./autosave";
 import { refreshCountdown, startCountdownPolling } from "./countdown";
-import { resetOnActiveTab, runOnActiveTab, togglePauseOnActiveTab } from "./content-commands";
+import {
+  resetOnActiveTab,
+  runOnActiveTab,
+  togglePauseOnActiveTab,
+} from "./content-commands";
 import { refs } from "./refs";
 import { applySettingsToForm, updateToggleButtons } from "./settings-form";
 import { loadStoredSettings } from "./settings-store";
@@ -17,7 +21,12 @@ async function init() {
   applySettingsToForm(settings);
   updateToggleButtons();
 
-  [refs.wordCount, refs.targetLang, refs.refreshSeconds, refs.debugLogs].forEach((ref) => {
+  [
+    refs.wordCount,
+    refs.targetLang,
+    refs.refreshSeconds,
+    refs.debugLogs,
+  ].forEach((ref) => {
     ref.addEventListener("input", scheduleAutosave);
     ref.addEventListener("change", scheduleAutosave);
   });
@@ -26,7 +35,11 @@ async function init() {
     const result = await flushAutosave();
     const ok = await runOnActiveTab();
     if (ok) {
-      setStatus(result.saved ? "Translation run started." : "Translation started, but settings were not saved.");
+      setStatus(
+        result.saved
+          ? "Translation run started."
+          : "Translation started, but settings were not saved.",
+      );
     }
     await refreshCountdown();
   });
@@ -34,7 +47,11 @@ async function init() {
   refs.pauseBtn.addEventListener("click", async () => {
     const ok = await togglePauseOnActiveTab();
     if (ok) {
-      setStatus(refs.pauseBtn.textContent === "Resume" ? "Auto change paused." : "Auto change resumed.");
+      setStatus(
+        refs.pauseBtn.textContent === "Resume"
+          ? "Auto change paused."
+          : "Auto change resumed.",
+      );
       await refreshCountdown();
     }
   });

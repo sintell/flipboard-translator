@@ -2,7 +2,12 @@ import { log } from "./state";
 
 export function shouldSkipElement(el: Element | null): boolean {
   if (!el) return true;
-  if (el.closest("script, style, noscript, textarea, input, select, option, code, pre, a") || el.closest(".rwf-replacement")) {
+  if (
+    el.closest(
+      "script, style, noscript, textarea, input, select, option, code, pre, a",
+    ) ||
+    el.closest(".rwf-replacement")
+  ) {
     return true;
   }
   if ((el as HTMLElement).isContentEditable) return true;
@@ -15,14 +20,20 @@ export function shouldSkipElement(el: Element | null): boolean {
 
 export function collectTextNodes(): Text[] {
   const nodes: Text[] = [];
-  const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (!node || !node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-      const parent = (node as Text).parentElement;
-      if (!parent || shouldSkipElement(parent)) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
+  const walker = document.createTreeWalker(
+    document.body || document.documentElement,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        if (!node || !node.nodeValue || !node.nodeValue.trim())
+          return NodeFilter.FILTER_REJECT;
+        const parent = (node as Text).parentElement;
+        if (!parent || shouldSkipElement(parent))
+          return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
     },
-  });
+  );
 
   let current = walker.nextNode();
   while (current) {

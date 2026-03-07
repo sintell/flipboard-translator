@@ -3,7 +3,10 @@ import { getHostnameFromUrl } from "../shared/hostnames";
 import { updateToggleButtons } from "./settings-form";
 import { log, settingsState } from "./state";
 
-export async function getActiveTabInfo(): Promise<{ id: number; hostname: string } | null> {
+export async function getActiveTabInfo(): Promise<{
+  id: number;
+  hostname: string;
+} | null> {
   const tabs = await tabsQueryActive();
   log("activeTab.tabs", tabs);
   if (!tabs.length || typeof tabs[0].id !== "number") {

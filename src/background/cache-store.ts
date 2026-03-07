@@ -18,10 +18,16 @@ export async function loadCache(): Promise<TranslationCache> {
   return raw;
 }
 
-function buildTrimmedCache(cache: TranslationCache, limit: number): TranslationCache {
+function buildTrimmedCache(
+  cache: TranslationCache,
+  limit: number,
+): TranslationCache {
   const trimmed: TranslationCache = {};
   const ordered = Object.keys(cache)
-    .map((key) => ({ key, ts: cache[key] && cache[key].ts ? cache[key].ts : 0 }))
+    .map((key) => ({
+      key,
+      ts: cache[key] && cache[key].ts ? cache[key].ts : 0,
+    }))
     .sort((a, b) => b.ts - a.ts)
     .slice(0, Math.max(0, limit));
 
@@ -32,12 +38,15 @@ function buildTrimmedCache(cache: TranslationCache, limit: number): TranslationC
   return trimmed;
 }
 
-export async function saveCache(cache: TranslationCache): Promise<TranslationCache> {
+export async function saveCache(
+  cache: TranslationCache,
+): Promise<TranslationCache> {
   const keys = Object.keys(cache);
   let limit = Math.min(keys.length, MAX_CACHE_ENTRIES);
 
   while (limit >= 0) {
-    const nextCache = limit === keys.length ? cache : buildTrimmedCache(cache, limit);
+    const nextCache =
+      limit === keys.length ? cache : buildTrimmedCache(cache, limit);
     const saved = await storageSet("local", { [CACHE_KEY]: nextCache });
     if (saved) {
       return nextCache;

@@ -16,10 +16,18 @@ export function shouldRequireTranscription(targetLang: string): boolean {
   );
 }
 
-export function isUnchangedTranslation(word: string, translated: string): boolean {
-  return String(word || "").toLowerCase() === String(translated || "").toLowerCase();
+export function isUnchangedTranslation(
+  word: string,
+  translated: string,
+): boolean {
+  return (
+    String(word || "").toLowerCase() === String(translated || "").toLowerCase()
+  );
 }
 
-export function shouldTryFallbackOnUnchanged(word: string, sourceLang: string): boolean {
+export function shouldTryFallbackOnUnchanged(
+  word: string,
+  sourceLang: string,
+): boolean {
   return sourceLang === "en" && /^[a-z][a-z'’-]{3,}$/i.test(word);
 }

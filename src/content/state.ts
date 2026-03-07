@@ -11,4 +11,7 @@ export const contentState = {
   currentSettings: Object.assign({}, DEFAULT_SETTINGS),
 };
 
-export const log = createLogger("content", () => contentState.currentSettings.debugLogs);
+export const log = createLogger(
+  "content",
+  () => contentState.currentSettings.debugLogs,
+);

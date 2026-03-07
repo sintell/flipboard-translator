@@ -4,9 +4,12 @@ import { log } from "./state";
 
 function adjustCase(sourceWord: string, translatedWord: string): string {
   if (!translatedWord) return sourceWord;
-  if (/^[\p{Lu}]+$/u.test(sourceWord)) return translatedWord.toLocaleUpperCase();
+  if (/^[\p{Lu}]+$/u.test(sourceWord))
+    return translatedWord.toLocaleUpperCase();
   if (/^[\p{Lu}][\p{Ll}]/u.test(sourceWord)) {
-    return translatedWord.charAt(0).toLocaleUpperCase() + translatedWord.slice(1);
+    return (
+      translatedWord.charAt(0).toLocaleUpperCase() + translatedWord.slice(1)
+    );
   }
   return translatedWord;
 }
@@ -29,7 +32,11 @@ export function restorePreviousReplacements(): void {
   }
 }
 
-function createReplacementElement(originalWord: string, translatedWord: string, transcription: string): HTMLElement {
+function createReplacementElement(
+  originalWord: string,
+  translatedWord: string,
+  transcription: string,
+): HTMLElement {
   const wrapper = document.createElement("abbr");
   wrapper.className = "rwf-replacement";
   wrapper.setAttribute("data-original", originalWord);
@@ -63,16 +70,26 @@ export function replaceWordsOnPage(translationMap: TranslationMap): void {
       const entry = translationMap[lower];
       if (!entry) continue;
 
-      const translated = typeof entry === "string" ? entry : String(entry.translated || "");
-      const transcription = typeof entry === "string" ? "" : String(entry.transcription || "");
+      const translated =
+        typeof entry === "string" ? entry : String(entry.translated || "");
+      const transcription =
+        typeof entry === "string" ? "" : String(entry.transcription || "");
       if (!translated) continue;
 
       hasAny = true;
       if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        fragment.appendChild(
+          document.createTextNode(text.slice(lastIndex, match.index)),
+        );
       }
 
-      fragment.appendChild(createReplacementElement(matchedWord, adjustCase(matchedWord, translated), transcription));
+      fragment.appendChild(
+        createReplacementElement(
+          matchedWord,
+          adjustCase(matchedWord, translated),
+          transcription,
+        ),
+      );
       lastIndex = match.index + matchedWord.length;
       replacementByWord[lower] = (replacementByWord[lower] || 0) + 1;
       totalReplacements += 1;

@@ -1,4 +1,7 @@
-import { addStorageChangedListener, getExtensionRuntime } from "../shared/browser-api";
+import {
+  addStorageChangedListener,
+  getExtensionRuntime,
+} from "../shared/browser-api";
 
 export function initBackgroundRuntimeEvents(state: {
   reconcileStoredState: () => Promise<void>;
