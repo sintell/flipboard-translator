@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Flipboard Word Translator",
   "description": "Randomly replaces page words with translated words and optional transcription.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "browser_specific_settings": {
     "gecko": {
       "id": "uyiiio@gmail.com",
