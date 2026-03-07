@@ -431,10 +431,8 @@
   }
 
   async function reconcileStoredState() {
-    const settings = await loadStoredSettings();
-    debugLogsEnabled = settings.debugLogs;
-    const record = normalizeSettingsRecord({ value: settings, updatedAt: Date.now() });
-    await saveSettingsRecord(record);
+    const record = await loadSettingsRecordFromStorage();
+    debugLogsEnabled = record.value.debugLogs;
   }
 
   const runtime = getRuntime();

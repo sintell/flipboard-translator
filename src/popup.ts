@@ -11,7 +11,6 @@
     targetLang: document.getElementById("targetLang") as HTMLSelectElement,
     refreshSeconds: document.getElementById("refreshSeconds") as HTMLInputElement,
     debugLogs: document.getElementById("debugLogs") as HTMLInputElement,
-    saveBtn: document.getElementById("saveBtn") as HTMLButtonElement,
     runBtn: document.getElementById("runBtn") as HTMLButtonElement,
     pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
     resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
@@ -20,6 +19,9 @@
   };
 
   let countdownTimer = null;
+  let autosaveTimer = null;
+  let autosaveRequestId = 0;
+  const AUTOSAVE_DELAY_MS = 700;
 
   const api = {
     storageSyncGet(key) {
@@ -234,6 +236,36 @@
     return { settings, saved };
   }
 
+  function clearAutosaveTimer() {
+    if (autosaveTimer !== null) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+  }
+
+  function scheduleAutosave() {
+    clearAutosaveTimer();
+    const requestId = ++autosaveRequestId;
+    setStatus("Saving settings...", 0);
+    autosaveTimer = setTimeout(async () => {
+      autosaveTimer = null;
+      const result = await saveSettings();
+      if (requestId !== autosaveRequestId) {
+        return;
+      }
+      setStatus(result.saved ? "Settings saved." : "Settings save failed.");
+      await refreshCountdown();
+    }, AUTOSAVE_DELAY_MS);
+  }
+
+  async function flushAutosave() {
+    clearAutosaveTimer();
+    autosaveRequestId += 1;
+    const result = await saveSettings();
+    setStatus(result.saved ? "Settings saved." : "Settings save failed.");
+    return result;
+  }
+
   async function loadStoredSettings() {
     const record = await loadStoredSettingsRecord();
     return record.value;
@@ -339,14 +371,13 @@
     log("init.settings", { raw, normalized: settings });
     applySettingsToForm(settings);
 
-    refs.saveBtn.addEventListener("click", async () => {
-      const result = await saveSettings();
-      setStatus(result.saved ? "Settings saved." : "Settings save failed.");
-      await refreshCountdown();
+    [refs.wordCount, refs.targetLang, refs.refreshSeconds, refs.debugLogs].forEach((ref) => {
+      ref.addEventListener("input", scheduleAutosave);
+      ref.addEventListener("change", scheduleAutosave);
     });
 
     refs.runBtn.addEventListener("click", async () => {
-      const result = await saveSettings();
+      const result = await flushAutosave();
       const ok = await runOnActiveTab();
       if (ok) setStatus(result.saved ? "Translation run started." : "Translation started, but settings were not saved.");
       await refreshCountdown();
