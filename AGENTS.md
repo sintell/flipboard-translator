@@ -165,6 +165,7 @@ Follow existing style in `src/background.ts`, `src/content.ts`, `src/popup.ts`.
 
 - Make minimal, targeted changes.
 - Do not add new dependencies/tooling unless task requires it.
+- When a user question is necessary, use the question tool instead of asking in plain text.
 - If adding lint/test/build tooling, update:
   - `README.md`
   - this `AGENTS.md` command section

@@ -55,7 +55,7 @@ npm run check
 GitHub releases are created by the workflow in `.github/workflows/release.yml`.
 
 - The workflow can run either from a pushed tag like `v1.0.0` or manually from the Actions tab.
-- `npm run release -- patch` updates `package.json`, `package-lock.json`, `chrome/manifest.json`, and `firefox/manifest.json`, then creates a release commit, creates an annotated tag, pushes the current branch to `origin`, and pushes the tag.
+- `npm run release -- patch` updates `package.json`, `package-lock.json`, `chrome/manifest.json`, `firefox/manifest.json`, and `.github/release-notes.md`, then creates a release commit, creates an annotated tag, pushes the current branch to `origin`, and pushes the tag.
 
 Create and push the next patch release:
 
@@ -69,7 +69,14 @@ Create and push a specific version:
 npm run release -- 1.2.0
 ```
 
+Create and push the next patch release with custom notes:
+
+```bash
+npm run release -- patch --notes "Fix translation cache invalidation and improve popup labels"
+```
+
 - Supported release arguments are `patch`, `minor`, `major`, or an explicit `x.y.z` version.
+- Optional release notes can be passed with `--notes "..."` or `--description "..."`; they are written to `.github/release-notes.md`, used for the annotated git tag body, prepended to the GitHub release body, and sent to AMO as Firefox release notes.
 - The script requires a clean git working tree before it runs.
 - The pushed tag triggers the GitHub release workflow, which uploads a `.zip` for `chrome/` and an AMO-signed unlisted `.xpi` for `firefox/`.
 - Set `AMO_SIGN_KEY` and `AMO_SIGN_SECRET` in the repository secrets before running the release workflow.

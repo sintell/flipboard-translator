@@ -7,7 +7,7 @@ const packageJsonPath = path.join(rootDir, "package.json");
 const packageLockPath = path.join(rootDir, "package-lock.json");
 const chromeManifestPath = path.join(rootDir, "chrome", "manifest.json");
 const firefoxManifestPath = path.join(rootDir, "firefox", "manifest.json");
-const versionArg = process.argv[2] || "patch";
+const releaseNotesPath = path.join(rootDir, ".github", "release-notes.md");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -86,7 +86,65 @@ function updatePackageLockVersion(packageLock, nextVersion) {
   }
 }
 
+function parseArgs(argv) {
+  const args = Array.from(argv);
+  let version = null;
+  let notes = "";
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--notes" || arg === "--description" || arg === "-n") {
+      const nextArg = args[index + 1];
+      if (nextArg === undefined) {
+        fail(`Missing value for ${arg}.`);
+      }
+      notes = String(nextArg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--notes=")) {
+      notes = arg.slice("--notes=".length);
+      continue;
+    }
+
+    if (arg.startsWith("--description=")) {
+      notes = arg.slice("--description=".length);
+      continue;
+    }
+
+    if (arg.startsWith("-")) {
+      fail(`Unknown option: ${arg}`);
+    }
+
+    if (version !== null) {
+      fail(`Unexpected release argument: ${arg}`);
+    }
+
+    version = arg;
+  }
+
+  return {
+    version: version || "patch",
+    notes: notes.trim(),
+  };
+}
+
+function writeReleaseNotes(notes) {
+  fs.mkdirSync(path.dirname(releaseNotesPath), { recursive: true });
+  fs.writeFileSync(releaseNotesPath, notes ? `${notes}\n` : "");
+}
+
+function getTagMessage(tagName, notes) {
+  if (!notes) {
+    return `Release ${tagName}`;
+  }
+  return `Release ${tagName}\n\n${notes}`;
+}
+
 function main() {
+  const options = parseArgs(process.argv.slice(2));
   ensureCleanGitTree();
 
   const packageJson = readJson(packageJsonPath);
@@ -104,7 +162,7 @@ function main() {
     fail("Chrome and Firefox manifest versions must match before releasing.");
   }
 
-  const nextVersion = getNextVersion(currentVersion, versionArg);
+  const nextVersion = getNextVersion(currentVersion, options.version);
   const tagName = `v${nextVersion}`;
 
   ensureTagDoesNotExist(tagName);
@@ -116,20 +174,26 @@ function main() {
   writeJson(packageJsonPath, packageJson);
   writeJson(chromeManifestPath, chromeManifest);
   writeJson(firefoxManifestPath, firefoxManifest);
+  writeReleaseNotes(options.notes);
 
   if (packageLock) {
     updatePackageLockVersion(packageLock, nextVersion);
     writeJson(packageLockPath, packageLock);
   }
 
-  const filesToStage = ["package.json", "chrome/manifest.json", "firefox/manifest.json"];
+  const filesToStage = [
+    "package.json",
+    "chrome/manifest.json",
+    "firefox/manifest.json",
+    ".github/release-notes.md",
+  ];
   if (packageLock) {
     filesToStage.push("package-lock.json");
   }
 
   runGit(["add", ...filesToStage]);
   runGit(["commit", "-m", `Release v${nextVersion}`]);
-  runGit(["tag", "-a", tagName, "-m", `Release ${tagName}`]);
+  runGit(["tag", "-a", tagName, "-m", getTagMessage(tagName, options.notes)]);
   runGit(["push", "origin", "HEAD"]);
   runGit(["push", "origin", tagName]);
 
