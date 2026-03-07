@@ -71,7 +71,8 @@ npm run release -- 1.2.0
 
 - Supported release arguments are `patch`, `minor`, `major`, or an explicit `x.y.z` version.
 - The script requires a clean git working tree before it runs.
-- The pushed tag triggers the GitHub release workflow, which uploads a `.zip` for `chrome/` and an `.xpi` for `firefox/`.
+- The pushed tag triggers the GitHub release workflow, which uploads a `.zip` for `chrome/` and an AMO-signed unlisted `.xpi` for `firefox/`.
+- Set `AMO_SIGN_KEY` and `AMO_SIGN_SECRET` in the repository secrets before running the release workflow.
 
 ## Current language options
 

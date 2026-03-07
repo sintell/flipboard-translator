@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -68,7 +68,22 @@ jobs:
         run: |
           mkdir -p dist
           cd chrome && zip -r "../dist/flipboard-translator-chrome-${GITHUB_REF_NAME}.zip" .
-          cd ../firefox && zip -r "../dist/flipboard-translator-firefox-${GITHUB_REF_NAME}.xpi" .
+          cd ../firefox && zip -r "../dist/flipboard-translator-firefox-${GITHUB_REF_NAME}.zip" .
+
+      - name: Collect sources
+        run: git archive --format=zip --output=sources.zip ${{ github.ref }}
+
+      - name: Sign Firefox extension
+        id: firefox-sign
+        uses: kewisch/action-web-ext@v1
+        with:
+          cmd: sign
+          source: dist/flipboard-translator-firefox-${{ github.ref_name }}.zip
+          sourceCode: sources.zip
+          channel: unlisted
+          apiKey: ${{ secrets.AMO_SIGN_KEY }}
+          apiSecret: ${{ secrets.AMO_SIGN_SECRET }}
+          timeout: 900000
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -77,4 +92,4 @@ jobs:
           generate_release_notes: true
           files: |
             dist/flipboard-translator-chrome-${{ github.ref_name }}.zip
-            dist/flipboard-translator-firefox-${{ github.ref_name }}.xpi
+            ${{ steps.firefox-sign.outputs.target }}
