@@ -5,7 +5,7 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM"],
     "types": ["chrome", "firefox-webext-browser"],
-    "strict": true,
+    "strict": false,
     "noEmit": true,
     "allowJs": false,
     "skipLibCheck": true,

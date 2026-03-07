@@ -29,11 +29,7 @@
 
 body {
   margin: 0;
-  background: radial-gradient(
-    circle at top left,
-    var(--bg-start),
-    var(--bg-end) 70%
-  );
+  background: radial-gradient(circle at top left, var(--bg-start), var(--bg-end) 70%);
   color: var(--text);
   font-family: "Avenir Next", "Segoe UI", sans-serif;
 }
