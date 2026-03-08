@@ -1,7 +1,8 @@
 import { sanitizeTranslation } from "../translation-normalizers";
+import type { Logger } from "../../shared/logging";
 
 export async function fetchMyMemory(
-  log: (step: string, data?: unknown) => void,
+  log: Logger,
   word: string,
   sourceLang: string,
   targetLang: string,
@@ -12,7 +13,12 @@ export async function fetchMyMemory(
   });
 
   try {
-    log("fetch.mymemory.start", { word, sourceLang, targetLang });
+    log("fetch.mymemory.start", {
+      word,
+      sourceLang,
+      targetLang,
+      requestUrl: `https://api.mymemory.translated.net/get?${params.toString()}`,
+    });
     const response = await fetch(
       `https://api.mymemory.translated.net/get?${params.toString()}`,
     );

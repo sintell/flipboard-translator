@@ -71,24 +71,6 @@ tsgo --noEmit -p tsconfig.json
   5. Verify the countdown and status text update after popup actions.
   6. Optionally enable `debug logs` and confirm logging toggles cleanly.
 
-## 4) Single-Test Guidance for Future Additions
-
-If you extend the test runner setup, keep these scripts in `package.json`:
-
-- `test`: run full suite
-- `test:watch`: watch mode
-- `test:single`: run one file or one test name
-
-Example (Vitest-style) single test commands:
-
-```bash
-# one file
-npm run test:single -- path/to/file.test.ts
-
-# one test case name
-npm run test:single -- path/to/file.test.ts -t "case name"
-```
-
 Keep AGENTS.md updated as the suite grows.
 
 ## 5) Code Style and Conventions

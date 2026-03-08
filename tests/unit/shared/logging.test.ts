@@ -11,9 +11,17 @@ describe("normalizeBoolean", () => {
 
 describe("createLogger", () => {
   const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  const groupCollapsedSpy = vi
+    .spyOn(console, "groupCollapsed")
+    .mockImplementation(() => {});
+  const groupEndSpy = vi
+    .spyOn(console, "groupEnd")
+    .mockImplementation(() => {});
 
   afterEach(() => {
     logSpy.mockClear();
+    groupCollapsedSpy.mockClear();
+    groupEndSpy.mockClear();
   });
 
   it("logs plain messages when enabled", () => {
@@ -32,5 +40,16 @@ describe("createLogger", () => {
     const log = createLogger("test", () => false);
     log("step", { ok: true });
     expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("starts and ends groups when enabled", () => {
+    const log = createLogger("test", () => true);
+    log.groupCollapsed("batch", { size: 2 });
+    log.groupEnd();
+
+    expect(groupCollapsedSpy).toHaveBeenCalledWith("[RWF][test] batch", {
+      size: 2,
+    });
+    expect(groupEndSpy).toHaveBeenCalled();
   });
 });

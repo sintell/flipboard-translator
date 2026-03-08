@@ -7,6 +7,7 @@ export const refs = {
   pauseBtn: document.getElementById("pauseBtn") as HTMLButtonElement,
   resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
   disableBtn: document.getElementById("disableBtn") as HTMLButtonElement,
+  clearCacheBtn: document.getElementById("clearCacheBtn") as HTMLButtonElement,
   siteDisableBtn: document.getElementById(
     "siteDisableBtn",
   ) as HTMLButtonElement,

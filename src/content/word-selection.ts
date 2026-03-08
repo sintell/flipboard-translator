@@ -1,6 +1,26 @@
 import { MIN_WORD_LEN } from "../shared/constants";
 import { log } from "./state";
 
+const TOKEN_REGEX = /\p{L}[\p{L}\p{M}'’-]*/gu;
+
+type TextToken = {
+  word: string;
+  normalizedWord: string;
+  start: number;
+  end: number;
+};
+
+export type SelectedWordOccurrence = {
+  id: string;
+  word: string;
+  normalizedWord: string;
+  prev?: string;
+  next?: string;
+  node: Text;
+  start: number;
+  end: number;
+};
+
 export function isCandidateWord(token: string): boolean {
   if (!token) return false;
   if (token.length < MIN_WORD_LEN) return false;
@@ -9,40 +29,69 @@ export function isCandidateWord(token: string): boolean {
   return true;
 }
 
-export function pickRandomWords(textNodes: Text[], count: number): string[] {
-  const tokenRegex = /\p{L}[\p{L}\p{M}'’-]*/gu;
-  const frequency = new Map<string, number>();
+function collectTokens(text: string): TextToken[] {
+  const tokens: TextToken[] = [];
+  TOKEN_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  for (const node of textNodes) {
-    tokenRegex.lastIndex = 0;
+  while ((match = TOKEN_REGEX.exec(text)) !== null) {
+    const word = match[0];
+    tokens.push({
+      word,
+      normalizedWord: word.toLocaleLowerCase(),
+      start: match.index,
+      end: match.index + word.length,
+    });
+  }
+
+  return tokens;
+}
+
+export function pickRandomWordOccurrences(
+  textNodes: Text[],
+  count: number,
+): SelectedWordOccurrence[] {
+  const occurrences: SelectedWordOccurrence[] = [];
+
+  textNodes.forEach((node, nodeIndex) => {
     const text = node.nodeValue || "";
-    let match: RegExpExecArray | null;
-    while ((match = tokenRegex.exec(text)) !== null) {
-      const normalized = match[0].toLocaleLowerCase();
-      if (!isCandidateWord(normalized)) continue;
-      frequency.set(normalized, (frequency.get(normalized) || 0) + 1);
-    }
-  }
+    const tokens = collectTokens(text);
 
-  const pool = Array.from(frequency.keys());
-  if (pool.length === 0) return [];
+    tokens.forEach((token, tokenIndex) => {
+      if (!isCandidateWord(token.normalizedWord)) return;
+      occurrences.push({
+        id: `${nodeIndex}:${token.start}`,
+        word: token.word,
+        normalizedWord: token.normalizedWord,
+        prev: tokens[tokenIndex - 1]?.normalizedWord,
+        next: tokens[tokenIndex + 1]?.normalizedWord,
+        node,
+        start: token.start,
+        end: token.end,
+      });
+    });
+  });
 
-  for (let index = pool.length - 1; index > 0; index -= 1) {
+  if (occurrences.length === 0) return [];
+
+  for (let index = occurrences.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
-    const tmp = pool[index];
-    pool[index] = pool[swapIndex];
-    pool[swapIndex] = tmp;
+    const tmp = occurrences[index];
+    occurrences[index] = occurrences[swapIndex];
+    occurrences[swapIndex] = tmp;
   }
 
-  const selected = pool.slice(0, Math.min(count, pool.length));
-  log("pickRandomWords.complete", {
+  const selected = occurrences.slice(0, Math.min(count, occurrences.length));
+  log("pickRandomWordOccurrences.complete", {
     requested: count,
-    uniqueEligible: pool.length,
+    eligibleOccurrences: occurrences.length,
     selectedCount: selected.length,
-    selected,
-    topFrequency: Array.from(frequency.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20),
+    selected: selected.map((occurrence) => ({
+      id: occurrence.id,
+      word: occurrence.word,
+      prev: occurrence.prev,
+      next: occurrence.next,
+    })),
   });
   return selected;
 }
