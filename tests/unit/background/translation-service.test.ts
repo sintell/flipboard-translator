@@ -51,26 +51,19 @@ describe("translateWords", () => {
     });
   });
 
-  it("uses exact contextual cache matches before fuzzy or plain hits", async () => {
+  it("uses contextual phrase cache matches before plain word cache hits", async () => {
     vi.mocked(loadCache).mockResolvedValue({
       plain: {
         "en|ko|bank": { ...baseCacheEntry, value: "plain-bank" },
       },
       contextual: {
-        "en|ko|bank": [
-          {
-            ...baseCacheEntry,
-            value: "fuzzy-bank",
-            prev: "open",
-            next: "door",
-            ts: 200,
-          },
+        "en|ko|open bank account": [
           {
             ...baseCacheEntry,
             value: "exact-bank",
             prev: "open",
             next: "account",
-            ts: 150,
+            ts: 200,
           },
         ],
       },
@@ -82,6 +75,7 @@ describe("translateWords", () => {
         {
           id: "1",
           word: "bank",
+          phrase: "open bank account",
           sourceLang: "en",
           prev: "open",
           next: "account",
@@ -94,22 +88,21 @@ describe("translateWords", () => {
     expect(result["1"].translated).toBe("exact-bank");
     expect(result["1"].debug).toEqual({
       cache: "hit",
-      contextScore: 3,
+      contextScore: 2,
       contextMatch: "exact",
     });
     expect(fetchGoogleGtx).not.toHaveBeenCalled();
   });
 
-  it("uses fuzzy single-neighbor contextual cache matches", async () => {
+  it("uses one-sided contextual phrase cache matches", async () => {
     vi.mocked(loadCache).mockResolvedValue({
       plain: {},
       contextual: {
-        "en|ko|bank": [
+        "en|ko|river bank": [
           {
             ...baseCacheEntry,
             value: "river-bank",
             prev: "river",
-            next: "shore",
           },
         ],
       },
@@ -121,9 +114,9 @@ describe("translateWords", () => {
         {
           id: "1",
           word: "bank",
+          phrase: "river bank",
           sourceLang: "en",
           prev: "river",
-          next: "guard",
         },
       ],
       "ko",
@@ -133,27 +126,18 @@ describe("translateWords", () => {
     expect(result["1"].translated).toBe("river-bank");
     expect(result["1"].debug).toEqual({
       cache: "hit",
-      contextScore: 2,
-      contextMatch: "fuzzy",
+      contextScore: 1,
+      contextMatch: "exact",
     });
     expect(fetchGoogleGtx).not.toHaveBeenCalled();
   });
 
-  it("falls back to plain cache when contextual cache misses", async () => {
+  it("falls back to plain cache when there is no contextual phrase", async () => {
     vi.mocked(loadCache).mockResolvedValue({
       plain: {
         "en|ko|bank": { ...baseCacheEntry, value: "plain-bank" },
       },
-      contextual: {
-        "en|ko|bank": [
-          {
-            ...baseCacheEntry,
-            value: "other-context",
-            prev: "river",
-            next: "shore",
-          },
-        ],
-      },
+      contextual: {},
     });
 
     const result = await translateWords(
@@ -163,8 +147,6 @@ describe("translateWords", () => {
           id: "1",
           word: "bank",
           sourceLang: "en",
-          prev: "open",
-          next: "account",
         },
       ],
       "ko",
@@ -180,13 +162,14 @@ describe("translateWords", () => {
     expect(fetchGoogleGtx).not.toHaveBeenCalled();
   });
 
-  it("writes only exact observed contextual entries after fetching", async () => {
+  it("fetches using the contextual phrase and caches it by phrase key", async () => {
     await translateWords(
       log,
       [
         {
           id: "1",
           word: "bank",
+          phrase: "river bank shore",
           sourceLang: "en",
           prev: "river",
           next: "shore",
@@ -196,28 +179,35 @@ describe("translateWords", () => {
       "en",
     );
 
+    expect(fetchGoogleGtx).toHaveBeenCalledWith(
+      log,
+      "river bank shore",
+      "en",
+      "ko",
+    );
     expect(saveCache).toHaveBeenCalledTimes(1);
     const savedCache = vi.mocked(saveCache).mock.calls[0][0];
-    expect(savedCache.contextual["en|ko|bank"]).toEqual([
+    expect(savedCache.contextual["en|ko|river bank shore"]).toEqual([
       expect.objectContaining({
         value: "translated",
         prev: "river",
         next: "shore",
       }),
     ]);
+    expect(savedCache.plain["en|ko|bank"]).toBeUndefined();
   });
 
-  it("falls back to the original word when providers fail", async () => {
+  it("falls back to the original contextual phrase when providers fail", async () => {
     vi.mocked(fetchGoogleGtx).mockResolvedValue({
       ok: false,
-      translated: "bank",
+      translated: "river bank",
       transcription: "",
       cacheable: false,
       reason: "network_error",
     });
     vi.mocked(fetchMyMemory).mockResolvedValue({
       ok: false,
-      translated: "bank",
+      translated: "river bank",
       transcription: "",
       cacheable: false,
       reason: "network_error",
@@ -229,9 +219,9 @@ describe("translateWords", () => {
         {
           id: "1",
           word: "bank",
+          phrase: "river bank",
           sourceLang: "en",
           prev: "river",
-          next: "shore",
         },
       ],
       "ko",
@@ -239,12 +229,12 @@ describe("translateWords", () => {
     );
 
     expect(result["1"]).toEqual({
-      translated: "bank",
+      translated: "river bank",
       transcription: "",
       debug: {
         cache: "miss",
-        contextScore: 0,
-        contextMatch: "none",
+        contextScore: 1,
+        contextMatch: "exact",
       },
     });
   });

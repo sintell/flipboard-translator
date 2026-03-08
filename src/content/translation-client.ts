@@ -16,6 +16,7 @@ export async function translateWordOccurrences(
     id: occurrence.id,
     word: occurrence.word,
     sourceLang: detectSourceLangForWord(occurrence.word, sourceLang),
+    phrase: occurrence.phrase,
     prev: occurrence.prev,
     next: occurrence.next,
   }));

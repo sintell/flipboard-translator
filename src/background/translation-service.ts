@@ -30,24 +30,24 @@ function createDebugInfo(
 
 async function fetchTranslation(
   log: Logger,
-  word: string,
+  text: string,
   sourceLang: string,
   targetLang: string,
 ) {
   log("translateWord.fetch.start", {
-    word,
+    text,
     sourceLang,
     targetLang,
   });
-  const gtx = await fetchGoogleGtx(log, word, sourceLang, targetLang);
+  const gtx = await fetchGoogleGtx(log, text, sourceLang, targetLang);
   log("translateWord.fetch.provider", {
-    word,
+    text,
     provider: "gtx",
     response: gtx,
   });
-  if (gtx.ok && !isUnchangedTranslation(word, gtx.translated)) {
+  if (gtx.ok && !isUnchangedTranslation(text, gtx.translated)) {
     log("translateWord.fetch.selected", {
-      word,
+      text,
       sourceLang,
       targetLang,
       provider: "gtx",
@@ -56,15 +56,15 @@ async function fetchTranslation(
     return gtx;
   }
 
-  const mm = await fetchMyMemory(log, word, sourceLang, targetLang);
+  const mm = await fetchMyMemory(log, text, sourceLang, targetLang);
   log("translateWord.fetch.provider", {
-    word,
+    text,
     provider: "mymemory",
     response: mm,
   });
-  if (mm.ok && !isUnchangedTranslation(word, mm.translated)) {
+  if (mm.ok && !isUnchangedTranslation(text, mm.translated)) {
     log("translateWord.fetch.selected", {
-      word,
+      text,
       sourceLang,
       targetLang,
       provider: "mymemory",
@@ -72,9 +72,9 @@ async function fetchTranslation(
     });
     return mm;
   }
-  if (gtx.ok && !shouldTryFallbackOnUnchanged(word, sourceLang)) {
+  if (gtx.ok && !shouldTryFallbackOnUnchanged(text, sourceLang)) {
     log("translateWord.fetch.selected", {
-      word,
+      text,
       sourceLang,
       targetLang,
       provider: "gtx_fallback",
@@ -84,7 +84,7 @@ async function fetchTranslation(
   }
   if (mm.ok) {
     log("translateWord.fetch.selected", {
-      word,
+      text,
       sourceLang,
       targetLang,
       provider: "mymemory_fallback",
@@ -94,7 +94,7 @@ async function fetchTranslation(
   }
   if (gtx.ok) {
     log("translateWord.fetch.selected", {
-      word,
+      text,
       sourceLang,
       targetLang,
       provider: "gtx_last_resort",
@@ -103,7 +103,7 @@ async function fetchTranslation(
     return gtx;
   }
   log("translateWord.fetch.selected", {
-    word,
+    text,
     sourceLang,
     targetLang,
     provider: "mymemory_last_resort",
@@ -155,45 +155,19 @@ function getCachedTranslation(
   return null;
 }
 
-function getContextMatchScore(
-  entry: ContextualTranslationCacheEntry,
-  prev?: string,
-  next?: string,
-): number {
-  const exactPrev = entry.prev === prev;
-  const exactNext = entry.next === next;
-  if (exactPrev && exactNext) return 3;
-
-  const fuzzyPrev = Boolean(prev) && entry.prev === prev;
-  const fuzzyNext = Boolean(next) && entry.next === next;
-  if (fuzzyPrev || fuzzyNext) return 2;
-
-  return 0;
-}
-
 function getContextualCachedTranslation(
   cache: TranslationCache,
   bucketKey: string,
   word: string,
   targetLang: string,
-  prev?: string,
-  next?: string,
 ) {
   const entries = Array.isArray(cache.contextual[bucketKey])
     ? cache.contextual[bucketKey]
     : [];
   let bestEntry: ContextualTranslationCacheEntry | null = null;
-  let bestScore = 0;
 
   for (const entry of entries) {
-    const score = getContextMatchScore(entry, prev, next);
-    if (score < 2) continue;
-    if (
-      score > bestScore ||
-      (score === bestScore && bestEntry && entry.ts > bestEntry.ts) ||
-      (score === bestScore && !bestEntry)
-    ) {
-      bestScore = score;
+    if (!bestEntry || entry.ts > bestEntry.ts) {
       bestEntry = entry;
     }
   }
@@ -210,8 +184,8 @@ function getContextualCachedTranslation(
 
   return {
     translation,
-    contextScore: bestScore,
-    matchType: (bestScore === 3 ? "exact" : "fuzzy") as "exact" | "fuzzy",
+    contextScore: 0,
+    matchType: "exact" as const,
   };
 }
 
@@ -220,14 +194,11 @@ function saveContextualTranslation(
   bucketKey: string,
   entry: ContextualTranslationCacheEntry,
 ): void {
-  const existing = Array.isArray(cache.contextual[bucketKey])
-    ? cache.contextual[bucketKey]
-    : [];
-  const nextEntries = existing.filter(
-    (item) => !(item.prev === entry.prev && item.next === entry.next),
-  );
-  nextEntries.push(entry);
-  cache.contextual[bucketKey] = nextEntries;
+  cache.contextual[bucketKey] = [entry];
+}
+
+function getContextWordCount(prev?: string, next?: string): number {
+  return Number(Boolean(prev)) + Number(Boolean(next));
 }
 
 export async function translateWords(
@@ -255,6 +226,9 @@ export async function translateWords(
       string,
       {
         word: string;
+        text: string;
+        isContextual: boolean;
+        contextWordCount: number;
         sourceLang: string;
         cachedTranslated: string;
         cachedTranscription: string;
@@ -269,7 +243,6 @@ export async function translateWords(
     >();
     let cacheHits = 0;
     let contextualCacheHits = 0;
-    let fuzzyCacheHits = 0;
 
     for (const request of requests) {
       const requestId = String((request && request.id) || "").trim();
@@ -279,36 +252,38 @@ export async function translateWords(
       const sourceLang = String(
         (request && request.sourceLang) || fallbackSourceLang || "en",
       ).toLowerCase();
+      const phrase = String((request && request.phrase) || "").trim();
       const prev = normalizeContextWord(request && request.prev);
       const next = normalizeContextWord(request && request.next);
+      const contextWordCount = getContextWordCount(prev, next);
+      const isContextual = Boolean(phrase) && contextWordCount > 0;
       const cacheKey = `${sourceLang}|${targetLang}|${word}`;
+      const contextualCacheKey = `${sourceLang}|${targetLang}|${phrase}`;
       log("translateWord.request", {
         requestId,
         word: originalWord,
         normalizedWord: word,
+        phrase: isContextual ? phrase : undefined,
         sourceLang,
         targetLang,
         prev,
         next,
         cacheKey,
+        contextualCacheKey: isContextual ? contextualCacheKey : undefined,
       });
-      const contextualTranslation = getContextualCachedTranslation(
-        cache,
-        cacheKey,
-        word,
-        targetLang,
-        prev,
-        next,
-      );
+      const contextualTranslation = isContextual
+        ? getContextualCachedTranslation(
+            cache,
+            contextualCacheKey,
+            phrase,
+            targetLang,
+          )
+        : null;
 
       if (contextualTranslation) {
         result[requestId] = {
           ...contextualTranslation.translation,
-          debug: createDebugInfo(
-            "hit",
-            contextualTranslation.contextScore,
-            contextualTranslation.matchType,
-          ),
+          debug: createDebugInfo("hit", contextWordCount, "exact"),
         };
         log("translateWord.response", {
           requestId,
@@ -319,24 +294,18 @@ export async function translateWords(
           prev,
           next,
           cache: "contextual",
-          contextScore: contextualTranslation.contextScore,
-          contextMatch: contextualTranslation.matchType,
+          contextScore: contextWordCount,
+          contextMatch: "exact",
           response: result[requestId],
         });
         cacheHits += 1;
         contextualCacheHits += 1;
-        if (contextualTranslation.matchType === "fuzzy") {
-          fuzzyCacheHits += 1;
-        }
         continue;
       }
 
-      const cachedTranslation = getCachedTranslation(
-        cache.plain,
-        cacheKey,
-        word,
-        targetLang,
-      );
+      const cachedTranslation = isContextual
+        ? null
+        : getCachedTranslation(cache.plain, cacheKey, word, targetLang);
 
       if (cachedTranslation) {
         result[requestId] = {
@@ -360,10 +329,14 @@ export async function translateWords(
         continue;
       }
 
-      const cached = cache.plain[cacheKey];
-      if (!pendingByKey.has(cacheKey)) {
-        pendingByKey.set(cacheKey, {
+      const pendingKey = isContextual ? contextualCacheKey : cacheKey;
+      const cached = isContextual ? undefined : cache.plain[cacheKey];
+      if (!pendingByKey.has(pendingKey)) {
+        pendingByKey.set(pendingKey, {
           word,
+          text: isContextual ? phrase : word,
+          isContextual,
+          contextWordCount,
           sourceLang,
           cachedTranslated: cached && cached.value ? cached.value : "",
           cachedTranscription: sanitizeTranscription(
@@ -373,7 +346,7 @@ export async function translateWords(
         });
       }
 
-      pendingByKey.get(cacheKey)?.requests.push({
+      pendingByKey.get(pendingKey)?.requests.push({
         id: requestId,
         word: originalWord,
         normalizedWord: word,
@@ -386,7 +359,6 @@ export async function translateWords(
     log("translateWords.cache", {
       cacheHits,
       contextualCacheHits,
-      fuzzyCacheHits,
       pendingCount: pending.length,
     });
 
@@ -394,6 +366,9 @@ export async function translateWords(
       pending.map(
         async ({
           word,
+          text,
+          isContextual,
+          contextWordCount,
           sourceLang,
           cachedTranslated,
           cachedTranscription,
@@ -401,14 +376,14 @@ export async function translateWords(
         }) => {
           const fetched = await fetchTranslation(
             log,
-            word,
+            text,
             sourceLang,
             targetLang,
           );
           const translated =
             fetched && fetched.translated
               ? fetched.translated
-              : cachedTranslated || word;
+              : cachedTranslated || text;
           const transcription =
             fetched && fetched.transcription
               ? fetched.transcription
@@ -420,7 +395,11 @@ export async function translateWords(
             result[pendingRequest.id] = {
               translated,
               transcription,
-              debug: createDebugInfo("miss", 0, "none"),
+              debug: createDebugInfo(
+                "miss",
+                isContextual ? contextWordCount : 0,
+                isContextual ? "exact" : "none",
+              ),
             };
             log("translateWord.response", {
               requestId: pendingRequest.id,
@@ -431,6 +410,8 @@ export async function translateWords(
               prev: pendingRequest.prev,
               next: pendingRequest.next,
               cache: "miss",
+              contextScore: isContextual ? contextWordCount : 0,
+              contextMatch: isContextual ? "exact" : "none",
               provider,
               fetched,
               response: result[pendingRequest.id],
@@ -445,15 +426,17 @@ export async function translateWords(
               confirmed: true,
               provider,
             };
-            cache.plain[`${sourceLang}|${targetLang}|${word}`] = cacheEntry;
-            for (const pendingRequest of pendingRequests) {
+            if (!isContextual) {
+              cache.plain[`${sourceLang}|${targetLang}|${word}`] = cacheEntry;
+            }
+            if (isContextual) {
               saveContextualTranslation(
                 cache,
-                `${sourceLang}|${targetLang}|${word}`,
+                `${sourceLang}|${targetLang}|${text}`,
                 {
                   ...cacheEntry,
-                  prev: pendingRequest.prev,
-                  next: pendingRequest.next,
+                  prev: pendingRequests[0]?.prev,
+                  next: pendingRequests[0]?.next,
                 },
               );
             }

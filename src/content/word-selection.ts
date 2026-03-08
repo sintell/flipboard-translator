@@ -14,12 +14,48 @@ export type SelectedWordOccurrence = {
   id: string;
   word: string;
   normalizedWord: string;
+  phrase?: string;
   prev?: string;
   next?: string;
   node: Text;
   start: number;
   end: number;
+  replaceStart: number;
+  replaceEnd: number;
+  replaceText: string;
 };
+
+function buildContextualOccurrence(
+  node: Text,
+  nodeIndex: number,
+  text: string,
+  token: TextToken,
+  tokenIndex: number,
+  tokens: TextToken[],
+): SelectedWordOccurrence {
+  const prevToken = tokens[tokenIndex - 1];
+  const nextToken = tokens[tokenIndex + 1];
+  const replaceStart = prevToken ? prevToken.start : token.start;
+  const replaceEnd = nextToken ? nextToken.end : token.end;
+  const replaceText = text.slice(replaceStart, replaceEnd);
+  const contextWordCount =
+    Number(Boolean(prevToken)) + Number(Boolean(nextToken));
+
+  return {
+    id: `${nodeIndex}:${token.start}`,
+    word: token.word,
+    normalizedWord: token.normalizedWord,
+    phrase: contextWordCount > 0 ? replaceText : undefined,
+    prev: prevToken?.normalizedWord,
+    next: nextToken?.normalizedWord,
+    node,
+    start: token.start,
+    end: token.end,
+    replaceStart,
+    replaceEnd,
+    replaceText,
+  };
+}
 
 export function isCandidateWord(token: string): boolean {
   if (!token) return false;
@@ -59,16 +95,16 @@ export function pickRandomWordOccurrences(
 
     tokens.forEach((token, tokenIndex) => {
       if (!isCandidateWord(token.normalizedWord)) return;
-      occurrences.push({
-        id: `${nodeIndex}:${token.start}`,
-        word: token.word,
-        normalizedWord: token.normalizedWord,
-        prev: tokens[tokenIndex - 1]?.normalizedWord,
-        next: tokens[tokenIndex + 1]?.normalizedWord,
-        node,
-        start: token.start,
-        end: token.end,
-      });
+      occurrences.push(
+        buildContextualOccurrence(
+          node,
+          nodeIndex,
+          text,
+          token,
+          tokenIndex,
+          tokens,
+        ),
+      );
     });
   });
 
@@ -81,7 +117,29 @@ export function pickRandomWordOccurrences(
     occurrences[swapIndex] = tmp;
   }
 
-  const selected = occurrences.slice(0, Math.min(count, occurrences.length));
+  const selected: SelectedWordOccurrence[] = [];
+  const occupiedRangesByNode = new Map<
+    Text,
+    Array<{ start: number; end: number }>
+  >();
+
+  for (const occurrence of occurrences) {
+    if (selected.length >= count) break;
+    const occupiedRanges = occupiedRangesByNode.get(occurrence.node) || [];
+    const overlaps = occupiedRanges.some(
+      (range) =>
+        occurrence.replaceStart < range.end &&
+        occurrence.replaceEnd > range.start,
+    );
+    if (overlaps) continue;
+    occupiedRanges.push({
+      start: occurrence.replaceStart,
+      end: occurrence.replaceEnd,
+    });
+    occupiedRangesByNode.set(occurrence.node, occupiedRanges);
+    selected.push(occurrence);
+  }
+
   log("pickRandomWordOccurrences.complete", {
     requested: count,
     eligibleOccurrences: occurrences.length,
@@ -89,6 +147,7 @@ export function pickRandomWordOccurrences(
     selected: selected.map((occurrence) => ({
       id: occurrence.id,
       word: occurrence.word,
+      phrase: occurrence.phrase,
       prev: occurrence.prev,
       next: occurrence.next,
     })),

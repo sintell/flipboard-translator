@@ -5,6 +5,7 @@ import type { SelectedWordOccurrence } from "./word-selection";
 function buildReplacementTitle(
   originalWord: string,
   transcription: string,
+  translatedFrom?: string,
   debug?: {
     cache: "hit" | "miss";
     contextScore: number;
@@ -16,6 +17,9 @@ function buildReplacementTitle(
   ];
 
   if (contentState.currentSettings.debugLogs && debug) {
+    if (translatedFrom && debug.contextScore > 0) {
+      lines.push(`from: ${translatedFrom}`);
+    }
     lines.push(`cache: ${debug.cache}`);
     lines.push(`ctx: ${debug.contextMatch} (${debug.contextScore})`);
   }
@@ -33,6 +37,18 @@ function adjustCase(sourceWord: string, translatedWord: string): string {
     );
   }
   return translatedWord;
+}
+
+function getOccurrenceReplaceStart(occurrence: SelectedWordOccurrence): number {
+  return occurrence.replaceStart ?? occurrence.start;
+}
+
+function getOccurrenceReplaceEnd(occurrence: SelectedWordOccurrence): number {
+  return occurrence.replaceEnd ?? occurrence.end;
+}
+
+function getOccurrenceReplaceText(occurrence: SelectedWordOccurrence): string {
+  return occurrence.replaceText || occurrence.word;
 }
 
 export function restorePreviousReplacements(): void {
@@ -57,6 +73,7 @@ function createReplacementElement(
   originalWord: string,
   translatedWord: string,
   transcription: string,
+  translatedFrom?: string,
   debug?: {
     cache: "hit" | "miss";
     contextScore: number;
@@ -71,7 +88,7 @@ function createReplacementElement(
   }
   wrapper.setAttribute(
     "title",
-    buildReplacementTitle(originalWord, transcription, debug),
+    buildReplacementTitle(originalWord, transcription, translatedFrom, debug),
   );
   wrapper.textContent = translatedWord;
   return wrapper;
@@ -85,6 +102,7 @@ export function replaceWordsOnPage(
   const replacementByWord: Record<string, number> = {};
   let totalReplacements = 0;
   let staleOccurrences = 0;
+  let overlappingOccurrences = 0;
 
   for (const occurrence of occurrences) {
     if (!occurrencesByNode.has(occurrence.node)) {
@@ -102,7 +120,12 @@ export function replaceWordsOnPage(
       .filter((occurrence) => {
         const entry = translationMap[occurrence.id];
         if (!entry) return false;
-        if (text.slice(occurrence.start, occurrence.end) !== occurrence.word) {
+        if (
+          text.slice(
+            getOccurrenceReplaceStart(occurrence),
+            getOccurrenceReplaceEnd(occurrence),
+          ) !== getOccurrenceReplaceText(occurrence)
+        ) {
           staleOccurrences += 1;
           return false;
         }
@@ -110,7 +133,11 @@ export function replaceWordsOnPage(
           typeof entry === "string" ? entry : String(entry.translated || "");
         return Boolean(translated);
       })
-      .sort((a, b) => a.start - b.start);
+      .sort(
+        (a, b) =>
+          getOccurrenceReplaceStart(a) - getOccurrenceReplaceStart(b) ||
+          getOccurrenceReplaceEnd(a) - getOccurrenceReplaceEnd(b),
+      );
 
     for (const occurrence of validOccurrences) {
       const entry = translationMap[occurrence.id];
@@ -120,22 +147,32 @@ export function replaceWordsOnPage(
       const transcription =
         typeof entry === "string" ? "" : String(entry.transcription || "");
       const debug = typeof entry === "string" ? undefined : entry.debug;
+      const replaceStart = getOccurrenceReplaceStart(occurrence);
+      const replaceEnd = getOccurrenceReplaceEnd(occurrence);
+      const replaceText = getOccurrenceReplaceText(occurrence);
+      if (replaceStart < lastIndex) {
+        overlappingOccurrences += 1;
+        continue;
+      }
       hasAny = true;
-      if (occurrence.start > lastIndex) {
+      if (replaceStart > lastIndex) {
         fragment.appendChild(
-          document.createTextNode(text.slice(lastIndex, occurrence.start)),
+          document.createTextNode(text.slice(lastIndex, replaceStart)),
         );
       }
 
       fragment.appendChild(
         createReplacementElement(
-          occurrence.word,
-          adjustCase(occurrence.word, translated),
+          replaceText,
+          replaceText === occurrence.word
+            ? adjustCase(occurrence.word, translated)
+            : translated,
           transcription,
+          occurrence.phrase,
           debug,
         ),
       );
-      lastIndex = occurrence.end;
+      lastIndex = replaceEnd;
       replacementByWord[occurrence.normalizedWord] =
         (replacementByWord[occurrence.normalizedWord] || 0) + 1;
       totalReplacements += 1;
@@ -152,6 +189,7 @@ export function replaceWordsOnPage(
     translatedWordsCount: Object.keys(translationMap).length,
     totalReplacements,
     staleOccurrences,
+    overlappingOccurrences,
     replacementByWord,
     translationMap,
   });

@@ -91,16 +91,22 @@ function createOccurrence(
   word: string,
   start: number,
   end: number,
+  extra: Partial<SelectedWordOccurrence> = {},
 ): SelectedWordOccurrence {
   return {
     id,
     word,
     normalizedWord: word.toLocaleLowerCase(),
+    phrase: undefined,
     prev: undefined,
     next: undefined,
     node: node as unknown as Text,
     start,
     end,
+    replaceStart: start,
+    replaceEnd: end,
+    replaceText: word,
+    ...extra,
   };
 }
 
@@ -167,5 +173,93 @@ describe("replaceWordsOnPage", () => {
     );
 
     contentState.currentSettings.debugLogs = false;
+  });
+
+  it("adds contextual phrase debug hints to the tooltip in debug mode", async () => {
+    const { contentState } = await import("../../../src/content/state");
+    contentState.currentSettings.debugLogs = true;
+
+    const node = createFakeTextNode("Alpha bravo charlie");
+    const occurrences = [
+      createOccurrence(node, "target", "bravo", 6, 11, {
+        phrase: "Alpha bravo charlie",
+        prev: "alpha",
+        next: "charlie",
+        replaceStart: 0,
+        replaceEnd: 19,
+        replaceText: "Alpha bravo charlie",
+      }),
+    ];
+    const translationMap: TranslationMap = {
+      target: {
+        translated: "phrase-tr",
+        transcription: "pom",
+        debug: {
+          cache: "miss",
+          contextScore: 2,
+          contextMatch: "exact",
+        },
+      },
+    };
+
+    replaceWordsOnPage(occurrences, translationMap);
+
+    const abbr = getFirstAbbrAttributes(node.replacedWith);
+    expect(abbr && abbr.attributes.title).toBe(
+      "Alpha bravo charlie (pom)\nfrom: Alpha bravo charlie\ncache: miss\nctx: exact (2)",
+    );
+
+    contentState.currentSettings.debugLogs = false;
+  });
+
+  it("replaces the full contextual phrase span when phrase translation is used", () => {
+    const node = createFakeTextNode("Alpha bravo charlie delta");
+    const occurrences = [
+      createOccurrence(node, "target", "bravo", 6, 11, {
+        phrase: "Alpha bravo charlie",
+        prev: "alpha",
+        next: "charlie",
+        replaceStart: 0,
+        replaceEnd: 19,
+        replaceText: "Alpha bravo charlie",
+      }),
+    ];
+    const translationMap: TranslationMap = {
+      target: { translated: "phrase-tr", transcription: "" },
+    };
+
+    replaceWordsOnPage(occurrences, translationMap);
+
+    expect(serializeFragment(node.replacedWith)).toBe(
+      '<abbr data-original="Alpha bravo charlie">phrase-tr</abbr> delta',
+    );
+  });
+
+  it("skips overlapping contextual spans and keeps the first valid one", () => {
+    const node = createFakeTextNode("Alpha bravo charlie delta");
+    const occurrences = [
+      createOccurrence(node, "first", "bravo", 6, 11, {
+        phrase: "Alpha bravo charlie",
+        replaceStart: 0,
+        replaceEnd: 19,
+        replaceText: "Alpha bravo charlie",
+      }),
+      createOccurrence(node, "second", "charlie", 12, 19, {
+        phrase: "bravo charlie delta",
+        replaceStart: 6,
+        replaceEnd: 25,
+        replaceText: "bravo charlie delta",
+      }),
+    ];
+    const translationMap: TranslationMap = {
+      first: { translated: "first-tr", transcription: "" },
+      second: { translated: "second-tr", transcription: "" },
+    };
+
+    replaceWordsOnPage(occurrences, translationMap);
+
+    expect(serializeFragment(node.replacedWith)).toBe(
+      '<abbr data-original="Alpha bravo charlie">first-tr</abbr> delta',
+    );
   });
 });

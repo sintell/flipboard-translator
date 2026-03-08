@@ -8,8 +8,8 @@ export type RwfSettings = {
 };
 
 export const DEFAULT_SETTINGS: RwfSettings = {
-  wordCount: 8,
-  targetLang: "ko",
+  wordCount: 16,
+  targetLang: "ka",
   refreshSeconds: 60,
   debugLogs: false,
   enabled: true,

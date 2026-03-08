@@ -10,6 +10,7 @@ export type TranslationRequest = {
   id: string;
   word: string;
   sourceLang?: string;
+  phrase?: string;
   prev?: string;
   next?: string;
 };
