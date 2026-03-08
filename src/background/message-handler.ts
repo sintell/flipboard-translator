@@ -1,12 +1,29 @@
 import { addRuntimeMessageListener } from "../shared/browser-api";
-import { MESSAGE_TRANSLATE_REQUEST } from "../shared/messages";
+import type { Logger } from "../shared/logging";
+import {
+  MESSAGE_CLEAR_CACHE,
+  MESSAGE_TRANSLATE_REQUEST,
+} from "../shared/messages";
+import { clearCache } from "./cache-store";
 import { translateWords } from "./translation-service";
 
-export function initBackgroundMessageHandler(
-  log: (step: string, data?: unknown) => void,
-): void {
+export function initBackgroundMessageHandler(log: Logger): void {
   addRuntimeMessageListener((message, _sender, sendResponse) => {
-    if (!message || message.type !== MESSAGE_TRANSLATE_REQUEST) {
+    if (!message) {
+      return false;
+    }
+
+    if (message.type === MESSAGE_CLEAR_CACHE) {
+      clearCache()
+        .then((ok) => {
+          log("message.clearCache", { ok });
+          sendResponse({ ok });
+        })
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+
+    if (message.type !== MESSAGE_TRANSLATE_REQUEST) {
       return false;
     }
 

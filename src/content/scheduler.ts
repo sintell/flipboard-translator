@@ -16,8 +16,8 @@ import {
   isContentAutoModeEnabled,
 } from "./settings";
 import { contentState, log } from "./state";
-import { translateWords } from "./translation-client";
-import { pickRandomWords } from "./word-selection";
+import { translateWordOccurrences } from "./translation-client";
+import { pickRandomWordOccurrences } from "./word-selection";
 
 export async function runOnce(forceManual = false): Promise<void> {
   if (contentState.isRunning || !document.body) return;
@@ -40,8 +40,11 @@ export async function runOnce(forceManual = false): Promise<void> {
       return;
     }
 
-    const chosenWords = pickRandomWords(collectTextNodes(), settings.wordCount);
-    if (chosenWords.length === 0) {
+    const chosenOccurrences = pickRandomWordOccurrences(
+      collectTextNodes(),
+      settings.wordCount,
+    );
+    if (chosenOccurrences.length === 0) {
       log("run.noWordsSelected", { runId });
       return;
     }
@@ -49,7 +52,12 @@ export async function runOnce(forceManual = false): Promise<void> {
     const sourceLang = getBaseSourceLang();
     log("sourceLang.detected", { sourceLang });
     replaceWordsOnPage(
-      await translateWords(chosenWords, sourceLang, settings.targetLang),
+      chosenOccurrences,
+      await translateWordOccurrences(
+        chosenOccurrences,
+        sourceLang,
+        settings.targetLang,
+      ),
     );
     log("run.complete", { runId });
   } catch (err: any) {

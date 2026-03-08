@@ -1,6 +1,7 @@
 import { flushAutosave, scheduleAutosave } from "./autosave";
 import { refreshCountdown, startCountdownPolling } from "./countdown";
 import {
+  clearTranslationCache,
   resetOnActiveTab,
   runOnActiveTab,
   togglePauseOnActiveTab,
@@ -59,6 +60,11 @@ async function init() {
   refs.disableBtn.addEventListener("click", async () => {
     await flushAutosave();
     await toggleGlobalEnabled();
+  });
+
+  refs.clearCacheBtn.addEventListener("click", async () => {
+    const ok = await clearTranslationCache();
+    setStatus(ok ? "Translation cache cleared." : "Could not clear cache.");
   });
 
   refs.siteDisableBtn.addEventListener("click", async () => {

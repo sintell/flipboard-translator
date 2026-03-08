@@ -1,5 +1,6 @@
-import { sendTabMessage } from "../shared/browser-api";
+import { sendRuntimeMessage, sendTabMessage } from "../shared/browser-api";
 import {
+  MESSAGE_CLEAR_CACHE,
   MESSAGE_GET_STATUS,
   MESSAGE_RESET_TRANSLATIONS,
   MESSAGE_RUN_NOW,
@@ -31,6 +32,14 @@ export async function resetOnActiveTab(): Promise<boolean> {
   await sendTabMessage(tab.id, { type: MESSAGE_RESET_TRANSLATIONS });
   log("resetOnActiveTab.sent", { tabId: tab.id });
   return true;
+}
+
+export async function clearTranslationCache(): Promise<boolean> {
+  const response = await sendRuntimeMessage<{ ok?: boolean }>({
+    type: MESSAGE_CLEAR_CACHE,
+  });
+  log("clearTranslationCache.response", response);
+  return Boolean(response && response.ok);
 }
 
 export async function getStatusFromActiveTab(): Promise<{

@@ -2,9 +2,10 @@ import {
   sanitizeTranscription,
   sanitizeTranslation,
 } from "../translation-normalizers";
+import type { Logger } from "../../shared/logging";
 
 export async function fetchGoogleGtx(
-  log: (step: string, data?: unknown) => void,
+  log: Logger,
   word: string,
   sourceLang: string,
   targetLang: string,
@@ -18,7 +19,12 @@ export async function fetchGoogleGtx(
   params.append("q", word);
 
   try {
-    log("fetch.gtx.start", { word, sourceLang, targetLang });
+    log("fetch.gtx.start", {
+      word,
+      sourceLang,
+      targetLang,
+      requestUrl: `https://translate.googleapis.com/translate_a/single?${params.toString()}`,
+    });
     const response = await fetch(
       `https://translate.googleapis.com/translate_a/single?${params.toString()}`,
     );
