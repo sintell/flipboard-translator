@@ -94,6 +94,12 @@ button {
   background: color-mix(in srgb, var(--bg-end) 78%, white 22%);
 }
 
+button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 input:focus,
 select:focus,
 button:focus {
@@ -113,12 +119,50 @@ button:focus {
   margin-top: 8px;
 }
 
+.quest-card {
+  margin-top: 12px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent 20%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--button-top) 68%, var(--bg-end) 32%);
+}
+
+.quest-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quest-progress {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
 button {
   cursor: pointer;
   padding: 6px 8px;
   font-size: 12px;
   border-radius: 7px;
   background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+
+button:hover {
+  border-color: color-mix(in srgb, var(--focus) 35%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--button-top) 88%, white 12%),
+    color-mix(in srgb, var(--button-bottom) 92%, var(--button-top) 8%)
+  );
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--focus) 14%, transparent);
 }
 
 button:active {

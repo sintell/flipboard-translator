@@ -6,6 +6,11 @@ export const MESSAGE_GET_STATUS = "RWF_GET_STATUS";
 export const MESSAGE_SETTINGS_UPDATED = "RWF_SETTINGS_UPDATED";
 export const MESSAGE_CLEAR_CACHE = "RWF_CLEAR_CACHE";
 
+export type QuestProgress = {
+  correct: number;
+  answered: number;
+};
+
 export type TranslationRequest = {
   id: string;
   word: string;
@@ -38,4 +43,5 @@ export type ContentStatus = {
   refreshSeconds: number;
   targetLang: string;
   wordCount: number;
+  quest: QuestProgress | null;
 };

@@ -7,6 +7,7 @@ import {
 } from "../shared/messages";
 import { addRuntimeMessageListener } from "../shared/browser-api";
 import { log } from "./state";
+import { clearActiveQuestUi } from "./quest-ui";
 import {
   getStatusSnapshot,
   runOnce,
@@ -31,6 +32,7 @@ export function initContentMessageHandler(): void {
     }
 
     if (message && message.type === MESSAGE_RESET_TRANSLATIONS) {
+      clearActiveQuestUi(true);
       restorePreviousReplacements();
       sendResponse && sendResponse({ ok: true });
       return true;

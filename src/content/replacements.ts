@@ -1,5 +1,6 @@
 import type { TranslationMap } from "../shared/messages";
 import { contentState, log } from "./state";
+import type { QuestEntry } from "./quest-game";
 import type { SelectedWordOccurrence } from "./word-selection";
 
 function buildReplacementTitle(
@@ -73,6 +74,7 @@ function createReplacementElement(
   originalWord: string,
   translatedWord: string,
   transcription: string,
+  questEntry?: QuestEntry,
   translatedFrom?: string,
   debug?: {
     cache: "hit" | "miss";
@@ -80,8 +82,10 @@ function createReplacementElement(
     contextMatch: "exact" | "fuzzy" | "none";
   },
 ): HTMLElement {
-  const wrapper = document.createElement("abbr");
-  wrapper.className = "rwf-replacement";
+  const wrapper = document.createElement(questEntry ? "button" : "abbr");
+  wrapper.className = questEntry
+    ? "rwf-replacement rwf-quest-target"
+    : "rwf-replacement";
   wrapper.setAttribute("data-original", originalWord);
   if (transcription) {
     wrapper.setAttribute("data-transcription", transcription);
@@ -91,12 +95,31 @@ function createReplacementElement(
     buildReplacementTitle(originalWord, transcription, translatedFrom, debug),
   );
   wrapper.textContent = translatedWord;
+
+  if (questEntry) {
+    wrapper.setAttribute("data-rwf-quest-id", questEntry.questId);
+    wrapper.setAttribute("data-rwf-quest-type", questEntry.type);
+    wrapper.setAttribute("tabindex", "0");
+    wrapper.setAttribute("type", "button");
+    wrapper.setAttribute("aria-haspopup", "dialog");
+    wrapper.classList.toggle("is-answered", questEntry.answered);
+    wrapper.classList.toggle(
+      "is-correct",
+      questEntry.answered && questEntry.answeredCorrectly,
+    );
+    wrapper.classList.toggle(
+      "is-incorrect",
+      questEntry.answered && !questEntry.answeredCorrectly,
+    );
+  }
+
   return wrapper;
 }
 
 export function replaceWordsOnPage(
   occurrences: SelectedWordOccurrence[],
   translationMap: TranslationMap,
+  questEntryByOccurrenceId: Record<string, QuestEntry> = {},
 ): void {
   const occurrencesByNode = new Map<Text, SelectedWordOccurrence[]>();
   const replacementByWord: Record<string, number> = {};
@@ -168,6 +191,7 @@ export function replaceWordsOnPage(
             ? adjustCase(occurrence.word, translated)
             : translated,
           transcription,
+          questEntryByOccurrenceId[occurrence.id],
           occurrence.phrase,
           debug,
         ),

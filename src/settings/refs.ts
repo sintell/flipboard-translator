@@ -11,6 +11,9 @@ export const refs = {
   siteDisableBtn: document.getElementById(
     "siteDisableBtn",
   ) as HTMLButtonElement,
+  questProgress: document.getElementById(
+    "questProgress",
+  ) as HTMLParagraphElement,
   countdown: document.getElementById("countdown") as HTMLParagraphElement,
   status: document.getElementById("status") as HTMLParagraphElement,
 };
