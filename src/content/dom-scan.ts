@@ -6,7 +6,8 @@ export function shouldSkipElement(el: Element | null): boolean {
     el.closest(
       "script, style, noscript, textarea, input, select, option, code, pre, a",
     ) ||
-    el.closest(".rwf-replacement")
+    el.closest(".rwf-replacement") ||
+    el.closest(".rwf-quest-ui")
   ) {
     return true;
   }

@@ -5,6 +5,12 @@ import {
 import type { ContentStatus } from "../shared/messages";
 import { getBaseSourceLang } from "./source-language";
 import { collectTextNodes } from "./dom-scan";
+import { buildQuestEntries } from "./quest-game";
+import {
+  clearActiveQuestUi,
+  getQuestProgressStatus,
+  setActiveQuestEntries,
+} from "./quest-ui";
 import {
   replaceWordsOnPage,
   restorePreviousReplacements,
@@ -27,6 +33,7 @@ export async function runOnce(forceManual = false): Promise<void> {
 
   try {
     restorePreviousReplacements();
+    clearActiveQuestUi(false);
     const settings = await loadSettings();
     contentState.currentSettings = settings;
     log("settings.loaded", settings);
@@ -51,12 +58,22 @@ export async function runOnce(forceManual = false): Promise<void> {
 
     const sourceLang = getBaseSourceLang();
     log("sourceLang.detected", { sourceLang });
+    const translations = await translateWordOccurrences(
+      chosenOccurrences,
+      sourceLang,
+      settings.targetLang,
+    );
+    const questEntries = buildQuestEntries(
+      chosenOccurrences,
+      translations,
+      contentState.questSessionRecords,
+    );
+    setActiveQuestEntries(questEntries);
     replaceWordsOnPage(
       chosenOccurrences,
-      await translateWordOccurrences(
-        chosenOccurrences,
-        sourceLang,
-        settings.targetLang,
+      translations,
+      Object.fromEntries(
+        questEntries.map((entry) => [entry.occurrenceId, entry]),
       ),
     );
     log("run.complete", { runId });
@@ -112,6 +129,7 @@ export function getStatusSnapshot(): ContentStatus {
     refreshSeconds: contentState.currentSettings.refreshSeconds,
     targetLang: contentState.currentSettings.targetLang,
     wordCount: contentState.currentSettings.wordCount,
+    quest: getQuestProgressStatus(),
   };
 }
 
@@ -140,6 +158,7 @@ export async function applySchedulerFromSettings(): Promise<void> {
   const settings = await loadSettings();
   contentState.currentSettings = settings;
   if (!isContentAutoModeEnabled(settings)) {
+    clearActiveQuestUi(false);
     restorePreviousReplacements();
     log("scheduler.disabled", {
       reason: getContentDisabledReason(settings),

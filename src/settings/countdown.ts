@@ -4,7 +4,18 @@ import { settingsState } from "./state";
 import { getStatusFromActiveTab } from "./content-commands";
 import type { ContentStatus } from "../shared/messages";
 
+function renderQuestProgress(status: ContentStatus | null): void {
+  if (!status || !status.quest) {
+    refs.questProgress.textContent = "No quest activity on this tab yet";
+    return;
+  }
+
+  refs.questProgress.textContent = `Answered ${status.quest.correct}/${status.quest.answered} correctly this session`;
+}
+
 export function renderCountdown(status: ContentStatus | null): void {
+  renderQuestProgress(status);
+
   if (!status) {
     refs.countdown.textContent = "Next change: unavailable on this tab";
     refs.pauseBtn.textContent = "Pause";
