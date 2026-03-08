@@ -2,6 +2,11 @@
 
 Agent guidance for working in `flipboard-translator`.
 
+Search guidance:
+
+- Prefer `ast-grep` for code-aware searches before falling back to regular text search tools like `grep`/`rg`.
+- Example: use `ast-grep --pattern 'fetchMyMemory($$$)' --lang ts src` for TS symbol usage searches.
+
 ## 1) Project Snapshot
 
 - Type: browser extension (Chrome MV3 + Firefox MV2 fallback).

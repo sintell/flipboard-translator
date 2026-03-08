@@ -36,3 +36,4 @@ web-ext-artifacts/
 session-ses_*.md
 opencode.json
 .opencode/
+.agents/

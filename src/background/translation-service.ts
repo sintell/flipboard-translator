@@ -150,11 +150,11 @@ export async function translateWords(
       });
       const contextualTranslation = prepared.isContextual
         ? getContextualCachedTranslation(
-            cache,
-            prepared.contextualCacheKey,
-            prepared.phrase || prepared.word,
-            targetLang,
-          )
+          cache,
+          prepared.contextualCacheKey,
+          prepared.phrase || prepared.word,
+          targetLang,
+        )
         : null;
 
       if (contextualTranslation) {
@@ -183,11 +183,11 @@ export async function translateWords(
       const cachedTranslation = prepared.isContextual
         ? null
         : getCachedTranslation(
-            cache.plain,
-            prepared.cacheKey,
-            prepared.word,
-            targetLang,
-          );
+          cache.plain,
+          prepared.cacheKey,
+          prepared.word,
+          targetLang,
+        );
 
       if (cachedTranslation) {
         result[prepared.requestId] = {
